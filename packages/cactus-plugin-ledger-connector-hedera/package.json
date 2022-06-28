@@ -25,9 +25,14 @@
   },
   "contributors": [
     {
-      "name": "Please add yourself to the list of contributors",
-      "email": "your.name@example.com",
-      "url": "https://example.com"
+      "name": "Danno Ferrin",
+      "email": "danno.ferrin@gmail.com",
+      "url": "danno.ferrin@gmail.com"
+    },
+    {
+      "name": "Jande Vincent",
+      "email": "janvinsha@gmail.com",
+      "url": "janvinsha@gmail.com"
     },
     {
       "name": "Peter Somogyvari",
