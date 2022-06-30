@@ -6,12 +6,9 @@
     "declarationDir": "dist/lib",
     "resolveJsonModule": true,
     "rootDir": "./src",
-    "tsBuildInfoFile": "../../.build-cache/cactus-plugin-ledger-connector-besu.tsbuildinfo"
+    "tsBuildInfoFile": "../../.build-cache/cactus-plugin-ledger-connector-hedera.tsbuildinfo"
   },
-  "include": [
-    "./src",
-    "src/**/*.json"
-  ],
+  "include": ["./src", "src/**/*.json"],
   "references": [
     {
       "path": "../cactus-common/tsconfig.json"

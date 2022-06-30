@@ -7,10 +7,9 @@ skinparam maxmessagesize 120
 skinparam sequenceParticipant underline
 
 actor "Caller" as caller
-participant "PluginLedgerConnectorBesu" as t << (C,#ADD1B2) class >>
+participant "PluginLedgerConnectorHedera" as t << (C,#ADD1B2) class >>
 
 autoactivate on
-
 activate caller
 caller -> t: transact(RunTransactionRequest)
 
