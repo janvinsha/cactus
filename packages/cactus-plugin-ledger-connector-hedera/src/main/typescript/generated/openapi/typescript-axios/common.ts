@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Hyperledger Cactus Plugin - Connector Hedera
- * Will provide integration between Hyperledger Cactus and a non-hyperledger project Hedera Hashgraph
+ * Can perform basic tasks on a Hedera ledger
  *
  * The version of the OpenAPI document: 0.0.1
  * 

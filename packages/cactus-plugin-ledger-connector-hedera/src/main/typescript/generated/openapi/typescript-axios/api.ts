@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Hyperledger Cactus Plugin - Connector Hedera
- * Will provide integration between Hyperledger Cactus and a non-hyperledger project Hedera Hashgraph
+ * Can perform basic tasks on a Hedera ledger
  *
  * The version of the OpenAPI document: 0.0.1
  * 
@@ -24,107 +24,23 @@ import { BASE_PATH, COLLECTION_FORMATS, RequestArgs, BaseAPI, RequiredError } fr
 /**
  * 
  * @export
- * @interface ConsistencyStrategy
+ * @interface HederaBaseConfig
  */
-export interface ConsistencyStrategy {
-    /**
-     * 
-     * @type {ReceiptType}
-     * @memberof ConsistencyStrategy
-     */
-    receiptType: ReceiptType;
-    /**
-     * The amount of milliseconds to wait for the receipt to arrive to the connector. Defaults to 0 which means to wait for an unlimited amount of time. Note that this wait may be interrupted still by other parts of the infrastructure such as load balancers cutting of HTTP requests after some time even if they are the type that is supposed to be kept alive. The question of re-entrance is a broader topic not in scope to discuss here, but it is important to mention it.
-     * @type {number}
-     * @memberof ConsistencyStrategy
-     */
-    timeoutMs?: number;
-    /**
-     * The number of blocks to wait to be confirmed in addition to the block containing the transaction in question. Note that if the receipt type is set to only wait for node transaction pool ACK and this parameter is set to anything, but zero then the API will not accept the request due to conflicting parameters.
-     * @type {number}
-     * @memberof ConsistencyStrategy
-     */
-    blockConfirmations: number;
-}
-/**
- * 
- * @export
- * @interface DeployContractSolidityBytecodeV1Request
- */
-export interface DeployContractSolidityBytecodeV1Request {
-    /**
-     * The contract name for retrieve the contracts json on the keychain.
-     * @type {string}
-     * @memberof DeployContractSolidityBytecodeV1Request
-     */
-    contractName: string;
-    /**
-     * The application binary interface of the solidity contract
-     * @type {Array<any>}
-     * @memberof DeployContractSolidityBytecodeV1Request
-     */
-    contractAbi: Array<any>;
-    /**
-     * 
-     * @type {Array<any>}
-     * @memberof DeployContractSolidityBytecodeV1Request
-     */
-    constructorArgs: Array<any>;
-    /**
-     * 
-     * @type {Web3SigningCredential}
-     * @memberof DeployContractSolidityBytecodeV1Request
-     */
-    web3SigningCredential: Web3SigningCredential;
-    /**
-     * See https://ethereum.stackexchange.com/a/47556 regarding the maximum length of the bytecode
-     * @type {string}
-     * @memberof DeployContractSolidityBytecodeV1Request
-     */
-    bytecode: string;
-    /**
-     * The keychainId for retrieve the contracts json.
-     * @type {string}
-     * @memberof DeployContractSolidityBytecodeV1Request
-     */
-    keychainId: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof DeployContractSolidityBytecodeV1Request
-     */
-    gas?: number;
+export interface HederaBaseConfig {
+    [key: string]: object | any;
+
     /**
      * 
      * @type {string}
-     * @memberof DeployContractSolidityBytecodeV1Request
+     * @memberof HederaBaseConfig
      */
-    gasPrice?: string;
-    /**
-     * The amount of milliseconds to wait for a transaction receipt with theaddress of the contract(which indicates successful deployment) beforegiving up and crashing.
-     * @type {number}
-     * @memberof DeployContractSolidityBytecodeV1Request
-     */
-    timeoutMs?: number;
+    operatorId?: string;
     /**
      * 
-     * @type {HederaPrivateTransactionConfig}
-     * @memberof DeployContractSolidityBytecodeV1Request
+     * @type {string}
+     * @memberof HederaBaseConfig
      */
-    privateTransactionConfig?: HederaPrivateTransactionConfig;
-}
-/**
- * 
- * @export
- * @interface DeployContractSolidityBytecodeV1Response
- */
-export interface DeployContractSolidityBytecodeV1Response {
-    /**
-     * 
-     * @type {Web3TransactionReceipt}
-     * @memberof DeployContractSolidityBytecodeV1Response
-     */
-    transactionReceipt: Web3TransactionReceipt;
+    operatorKey?: string;
 }
 /**
  * 
@@ -132,239 +48,90 @@ export interface DeployContractSolidityBytecodeV1Response {
  * @enum {string}
  */
 
-export enum EthContractInvocationType {
-    Send = 'SEND',
-    Call = 'CALL'
+export enum HederaCommand {
+    /**
+    * A transaction that creates a Hedera account
+    */
+    CreateAccount = 'createAccount',
+    /**
+    * A transaction that transfers hbars and tokens between Hedera accounts
+    */
+    TransferHbars = 'transferHbars',
+    /**
+    * A transaction that creates a new topic recognized by the Hedera network
+    */
+    CreateTopic = 'createTopic',
+    /**
+    * A transaction that submits a topic message to the Hedera network
+    */
+    SubmitMessage = 'submitMessage',
+    /**
+    * Create a new fungible on the Hedera network
+    */
+    CreateToken = 'createToken',
+    /**
+    * Create a new Non fungible token (NFT) on the Hedera network
+    */
+    CreateNft = 'createNft',
+    /**
+    * Transfer tokens from some accounts to other accounts. The transaction must be signed by the sending account
+    */
+    TransferToken = 'transferToken',
+    /**
+    * A transaction that creates a new file on a Hedera network.
+    */
+    CreateFile = 'createFile'
 }
 
 /**
  * 
  * @export
- * @interface GetBalanceV1Request
+ * @enum {string}
  */
-export interface GetBalanceV1Request {
-    /**
-     * 
-     * @type {string}
-     * @memberof GetBalanceV1Request
-     */
-    address: string;
-    /**
-     * 
-     * @type {any}
-     * @memberof GetBalanceV1Request
-     */
-    defaultBlock?: any | null;
-}
-/**
- * 
- * @export
- * @interface GetBalanceV1Response
- */
-export interface GetBalanceV1Response {
-    /**
-     * 
-     * @type {string}
-     * @memberof GetBalanceV1Response
-     */
-    balance: string;
-}
-/**
- * 
- * @export
- * @interface GetHederaRecordV1Request
- */
-export interface GetHederaRecordV1Request {
-    /**
-     * 
-     * @type {InvokeContractV1Request}
-     * @memberof GetHederaRecordV1Request
-     */
-    invokeCall?: InvokeContractV1Request;
-    /**
-     * 
-     * @type {string}
-     * @memberof GetHederaRecordV1Request
-     */
-    transactionHash?: string;
-}
-/**
- * 
- * @export
- * @interface GetHederaRecordV1Response
- */
-export interface GetHederaRecordV1Response {
-    /**
-     * 
-     * @type {string}
-     * @memberof GetHederaRecordV1Response
-     */
-    ledgerId?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof GetHederaRecordV1Response
-     */
-    stateContract?: string;
-    /**
-     * 
-     * @type {any}
-     * @memberof GetHederaRecordV1Response
-     */
-    transactionInputData?: any | null;
-    /**
-     * 
-     * @type {any}
-     * @memberof GetHederaRecordV1Response
-     */
-    callOutput?: any | null;
-}
-/**
- * 
- * @export
- * @interface GetPastLogsV1Request
- */
-export interface GetPastLogsV1Request {
-    /**
-     * 
-     * @type {any}
-     * @memberof GetPastLogsV1Request
-     */
-    toBlock?: any | null;
-    /**
-     * 
-     * @type {any}
-     * @memberof GetPastLogsV1Request
-     */
-    fromBlock?: any | null;
-    /**
-     * 
-     * @type {any}
-     * @memberof GetPastLogsV1Request
-     */
-    address?: any | null;
-    /**
-     * 
-     * @type {Array<any>}
-     * @memberof GetPastLogsV1Request
-     */
-    topics?: Array<any>;
-}
-/**
- * 
- * @export
- * @interface GetPastLogsV1Response
- */
-export interface GetPastLogsV1Response {
-    /**
-     * 
-     * @type {Array<EvmLog>}
-     * @memberof GetPastLogsV1Response
-     */
-    logs: Array<EvmLog>;
-}
-/**
- * 
- * @export
- * @interface GetTransactionV1Request
- */
-export interface GetTransactionV1Request {
-    /**
-     * 
-     * @type {string}
-     * @memberof GetTransactionV1Request
-     */
-    transactionHash: string;
-}
-/**
- * 
- * @export
- * @interface GetTransactionV1Response
- */
-export interface GetTransactionV1Response {
-    /**
-     * 
-     * @type {EvmTransaction}
-     * @memberof GetTransactionV1Response
-     */
-    transaction: EvmTransaction;
-}
-/**
- * 
- * @export
- * @interface HederaPrivateTransactionConfig
- */
-export interface HederaPrivateTransactionConfig {
-    /**
-     * 
-     * @type {string}
-     * @memberof HederaPrivateTransactionConfig
-     */
-    privateFrom: string;
-    /**
-     * 
-     * @type {Array<any>}
-     * @memberof HederaPrivateTransactionConfig
-     */
-    privateFor: Array<any>;
-}
-/**
- * 
- * @export
- * @interface HederaTransactionConfig
- */
-export interface HederaTransactionConfig {
-    [key: string]: object | any;
 
+export enum HederaQuery {
     /**
-     * 
-     * @type {string}
-     * @memberof HederaTransactionConfig
-     */
-    rawTransaction?: string;
+    * To get the state of an account
+    */
+    GetAccountBalance = 'getAccountBalance',
     /**
-     * 
-     * @type {string | number}
-     * @memberof HederaTransactionConfig
-     */
-    from?: string | number;
+    * To get details of the account.
+    */
+    GetAccountInfo = 'getAccountInfo',
     /**
-     * 
-     * @type {string}
-     * @memberof HederaTransactionConfig
-     */
-    to?: string;
+    * Topic info returns the following values for a topic.
+    */
+    GetTopicInfo = 'getTopicInfo',
     /**
-     * 
-     * @type {string | number}
-     * @memberof HederaTransactionConfig
-     */
-    value?: string | number;
+    * Subscribe to a topic ID&#39;s messages from a mirror node. You will receive all messages for the specified topic or within the defined start and end time
+    */
+    GetTopicMessages = 'getTopicMessages',
     /**
-     * 
-     * @type {string | number}
-     * @memberof HederaTransactionConfig
-     */
-    gas?: string | number;
+    * To get the balance of tokens for an account, you can submit an account balance query. The account balance query will return the tokens the account holds in a list format.
+    */
+    GetAccountTokenBalance = 'getAccountTokenBalance',
     /**
-     * 
-     * @type {string | number}
-     * @memberof HederaTransactionConfig
-     */
-    gasPrice?: string | number;
+    * Gets information about a fungible or non-fungible token instance.
+    */
+    GetTokenInfo = 'getTokenInfo',
     /**
-     * 
-     * @type {number}
-     * @memberof HederaTransactionConfig
-     */
-    nonce?: number;
+    * A query to get the contents of a file
+    */
+    GetFileContents = 'getFileContents',
     /**
-     * 
-     * @type {string}
-     * @memberof HederaTransactionConfig
-     */
-    data?: string;
+    * A query that returns the current state of a file. 
+    */
+    GetFileInfo = 'getFileInfo',
+    /**
+    * Make entity in the system, capable of sending transactions or queries, storing signatories, personal data and identifiers.
+    */
+    GetSmartContractBytecode = 'getSmartContractBytecode',
+    /**
+    * A query that returns the bytecode for a smart contract instance**.** Anyone can request the byte code of a smart contract instance on the network.
+    */
+    GetScheduleInfo = 'getScheduleInfo'
 }
+
 /**
  * 
  * @export
@@ -373,125 +140,30 @@ export interface HederaTransactionConfig {
 export interface InvokeContractV1Request {
     /**
      * 
-     * @type {string}
+     * @type {any}
      * @memberof InvokeContractV1Request
      */
-    contractName: string;
-    /**
-     * 
-     * @type {Web3SigningCredential}
-     * @memberof InvokeContractV1Request
-     */
-    signingCredential: Web3SigningCredential;
-    /**
-     * 
-     * @type {EthContractInvocationType}
-     * @memberof InvokeContractV1Request
-     */
-    invocationType: EthContractInvocationType;
-    /**
-     * The name of the contract method to invoke.
-     * @type {string}
-     * @memberof InvokeContractV1Request
-     */
-    methodName: string;
-    /**
-     * The list of arguments to pass in to the contract method being invoked.
-     * @type {Array<any>}
-     * @memberof InvokeContractV1Request
-     */
-    params: Array<any>;
-    /**
-     * The application binary interface of the solidity contract, optional parameter
-     * @type {Array<any>}
-     * @memberof InvokeContractV1Request
-     */
-    contractAbi?: Array<any>;
-    /**
-     * Address of the solidity contract, optional parameter
-     * @type {string}
-     * @memberof InvokeContractV1Request
-     */
-    contractAddress?: string;
-    /**
-     * 
-     * @type {string | number}
-     * @memberof InvokeContractV1Request
-     */
-    value?: string | number;
-    /**
-     * 
-     * @type {string | number}
-     * @memberof InvokeContractV1Request
-     */
-    gas?: string | number;
-    /**
-     * 
-     * @type {string | number}
-     * @memberof InvokeContractV1Request
-     */
-    gasPrice?: string | number;
-    /**
-     * 
-     * @type {number}
-     * @memberof InvokeContractV1Request
-     */
-    nonce?: number;
-    /**
-     * The amount of milliseconds to wait for a transaction receipt beforegiving up and crashing. Only has any effect if the invocation type is SEND
-     * @type {number}
-     * @memberof InvokeContractV1Request
-     */
-    timeoutMs?: number;
-    /**
-     * The keychainId for retrieve the contracts json.
-     * @type {string}
-     * @memberof InvokeContractV1Request
-     */
-    keychainId?: string;
-    /**
-     * 
-     * @type {HederaPrivateTransactionConfig}
-     * @memberof InvokeContractV1Request
-     */
-    privateTransactionConfig?: HederaPrivateTransactionConfig;
+    contractName?: any | null;
 }
 /**
  * 
  * @export
- * @interface InvokeContractV1Response
+ * @interface KeyPair
  */
-export interface InvokeContractV1Response {
+export interface KeyPair {
     /**
-     * 
-     * @type {Web3TransactionReceipt}
-     * @memberof InvokeContractV1Response
+     * SHA-3 ed25519 public keys of length 64 are recommended.
+     * @type {string}
+     * @memberof KeyPair
      */
-    transactionReceipt?: Web3TransactionReceipt;
+    publicKey: string;
     /**
-     * 
-     * @type {any}
-     * @memberof InvokeContractV1Response
+     * SHA-3 ed25519 private keys of length 64 are recommended.
+     * @type {string}
+     * @memberof KeyPair
      */
-    callOutput?: any | null;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof InvokeContractV1Response
-     */
-    success: boolean;
+    privateKey: string;
 }
-/**
- * Enumerates the possible types of receipts that can be waited for by someone or something that has requested the execution of a transaction on a ledger.
- * @export
- * @enum {string}
- */
-
-export enum ReceiptType {
-    NodeTxPoolAck = 'NODE_TX_POOL_ACK',
-    LedgerBlockAck = 'LEDGER_BLOCK_ACK'
-}
-
 /**
  * 
  * @export
@@ -500,28 +172,22 @@ export enum ReceiptType {
 export interface RunTransactionRequest {
     /**
      * 
-     * @type {Web3SigningCredential}
+     * @type {string}
      * @memberof RunTransactionRequest
      */
-    web3SigningCredential: Web3SigningCredential;
+    commandName: string;
     /**
      * 
-     * @type {HederaTransactionConfig}
+     * @type {HederaBaseConfig}
      * @memberof RunTransactionRequest
      */
-    transactionConfig: HederaTransactionConfig;
+    baseConfig?: HederaBaseConfig;
     /**
-     * 
-     * @type {ConsistencyStrategy}
+     * The list of arguments to pass in to the transaction request.
+     * @type {Array<any>}
      * @memberof RunTransactionRequest
      */
-    consistencyStrategy: ConsistencyStrategy;
-    /**
-     * 
-     * @type {HederaPrivateTransactionConfig}
-     * @memberof RunTransactionRequest
-     */
-    privateTransactionConfig?: HederaPrivateTransactionConfig;
+    params: Array<any>;
 }
 /**
  * 
@@ -531,266 +197,10 @@ export interface RunTransactionRequest {
 export interface RunTransactionResponse {
     /**
      * 
-     * @type {Web3TransactionReceipt}
+     * @type {any}
      * @memberof RunTransactionResponse
      */
-    transactionReceipt: Web3TransactionReceipt;
-}
-/**
- * 
- * @export
- * @interface SignTransactionRequest
- */
-export interface SignTransactionRequest {
-    /**
-     * 
-     * @type {string}
-     * @memberof SignTransactionRequest
-     */
-    keychainId: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof SignTransactionRequest
-     */
-    keychainRef: string;
-    /**
-     * The transaction hash of ledger will be used to fetch the contain.
-     * @type {string}
-     * @memberof SignTransactionRequest
-     */
-    transactionHash: string;
-}
-/**
- * 
- * @export
- * @interface SignTransactionResponse
- */
-export interface SignTransactionResponse {
-    /**
-     * The signatures of ledger from the corresponding transaction hash.
-     * @type {string}
-     * @memberof SignTransactionResponse
-     */
-    signature: string;
-}
-/**
- * 
- * @export
- * @interface SolidityContractJsonArtifact
- */
-export interface SolidityContractJsonArtifact {
-    /**
-     * 
-     * @type {string}
-     * @memberof SolidityContractJsonArtifact
-     */
-    contractName: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof SolidityContractJsonArtifact
-     */
-    metadata?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof SolidityContractJsonArtifact
-     */
-    bytecode?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof SolidityContractJsonArtifact
-     */
-    deployedBytecode?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof SolidityContractJsonArtifact
-     */
-    sourceMap?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof SolidityContractJsonArtifact
-     */
-    deployedSourceMap?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof SolidityContractJsonArtifact
-     */
-    sourcePath?: string;
-    /**
-     * 
-     * @type {{ [key: string]: object; }}
-     * @memberof SolidityContractJsonArtifact
-     */
-    compiler?: { [key: string]: object; };
-    /**
-     * 
-     * @type {{ [key: string]: object; }}
-     * @memberof SolidityContractJsonArtifact
-     */
-    functionHashes?: { [key: string]: object; };
-    /**
-     * 
-     * @type {object}
-     * @memberof SolidityContractJsonArtifact
-     */
-    gasEstimates?: object;
-}
-/**
- * @type Web3SigningCredential
- * @export
- */
-export type Web3SigningCredential = Web3SigningCredentialCactusKeychainRef | Web3SigningCredentialNone | Web3SigningCredentialPrivateKeyHex;
-
-/**
- * 
- * @export
- * @interface Web3SigningCredentialCactusKeychainRef
- */
-export interface Web3SigningCredentialCactusKeychainRef {
-    /**
-     * 
-     * @type {Web3SigningCredentialType}
-     * @memberof Web3SigningCredentialCactusKeychainRef
-     */
-    type: Web3SigningCredentialType;
-    /**
-     * The ethereum account (public key) that the credential  belongs to. Basically the username in the traditional  terminology of authentication.
-     * @type {string}
-     * @memberof Web3SigningCredentialCactusKeychainRef
-     */
-    ethAccount: string;
-    /**
-     * The key to use when looking up the the keychain entry holding the secret pointed to by the  keychainEntryKey parameter.
-     * @type {string}
-     * @memberof Web3SigningCredentialCactusKeychainRef
-     */
-    keychainEntryKey: string;
-    /**
-     * The keychain ID to use when looking up the the keychain plugin instance that will be used to retrieve the secret pointed to by the keychainEntryKey parameter.
-     * @type {string}
-     * @memberof Web3SigningCredentialCactusKeychainRef
-     */
-    keychainId: string;
-}
-/**
- * Using this denotes that there is no signing required because the transaction is pre-signed.
- * @export
- * @interface Web3SigningCredentialNone
- */
-export interface Web3SigningCredentialNone {
-    /**
-     * 
-     * @type {Web3SigningCredentialType}
-     * @memberof Web3SigningCredentialNone
-     */
-    type: Web3SigningCredentialType;
-}
-/**
- * 
- * @export
- * @interface Web3SigningCredentialPrivateKeyHex
- */
-export interface Web3SigningCredentialPrivateKeyHex {
-    /**
-     * 
-     * @type {Web3SigningCredentialType}
-     * @memberof Web3SigningCredentialPrivateKeyHex
-     */
-    type: Web3SigningCredentialType;
-    /**
-     * The ethereum account (public key) that the credential belongs to. Basically the username in the traditional terminology of authentication.
-     * @type {string}
-     * @memberof Web3SigningCredentialPrivateKeyHex
-     */
-    ethAccount: string;
-    /**
-     * The HEX encoded private key of an eth account.
-     * @type {string}
-     * @memberof Web3SigningCredentialPrivateKeyHex
-     */
-    secret: string;
-}
-/**
- * 
- * @export
- * @enum {string}
- */
-
-export enum Web3SigningCredentialType {
-    CactusKeychainRef = 'CACTUS_KEYCHAIN_REF',
-    GethKeychainPassword = 'GETH_KEYCHAIN_PASSWORD',
-    PrivateKeyHex = 'PRIVATE_KEY_HEX',
-    None = 'NONE'
-}
-
-/**
- * 
- * @export
- * @interface Web3TransactionReceipt
- */
-export interface Web3TransactionReceipt {
-    [key: string]: object | any;
-
-    /**
-     * 
-     * @type {boolean}
-     * @memberof Web3TransactionReceipt
-     */
-    status: boolean;
-    /**
-     * 
-     * @type {string}
-     * @memberof Web3TransactionReceipt
-     */
-    transactionHash: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof Web3TransactionReceipt
-     */
-    transactionIndex: number;
-    /**
-     * 
-     * @type {string}
-     * @memberof Web3TransactionReceipt
-     */
-    blockHash: string;
-    /**
-     * 
-     * @type {number}
-     * @memberof Web3TransactionReceipt
-     */
-    blockNumber: number;
-    /**
-     * 
-     * @type {number}
-     * @memberof Web3TransactionReceipt
-     */
-    gasUsed: number;
-    /**
-     * 
-     * @type {string}
-     * @memberof Web3TransactionReceipt
-     */
-    contractAddress?: string | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof Web3TransactionReceipt
-     */
-    from: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof Web3TransactionReceipt
-     */
-    to: string;
+    transactionReceipt: any | null;
 }
 
 /**
@@ -801,13 +211,12 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
     return {
         /**
          * 
-         * @summary Deploys the bytecode of a Solidity contract.
-         * @param {DeployContractSolidityBytecodeV1Request} [deployContractSolidityBytecodeV1Request] 
+         * @summary Get the Prometheus Metrics
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deployContractSolBytecodeV1: async (deployContractSolidityBytecodeV1Request?: DeployContractSolidityBytecodeV1Request, options: any = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/deploy-contract-solidity-bytecode`;
+        getPrometheusMetricsV1: async (options: any = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/get-prometheus-exporter-metrics`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -815,18 +224,15 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 baseOptions = configuration.baseOptions;
             }
 
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
 
     
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
             setSearchParams(localVarUrlObj, localVarQueryParameter, options.query);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(deployContractSolidityBytecodeV1Request, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -835,182 +241,12 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
-         * @summary Return balance of an address of a given block
-         * @param {GetBalanceV1Request} [getBalanceV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getBalanceV1: async (getBalanceV1Request?: GetBalanceV1Request, options: any = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/get-balance`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter, options.query);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(getBalanceV1Request, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Retrieves an arbitrary record (any piece of information) from the ledger. Ledger records can be call outputs, transaction input, etc.
-         * @param {GetHederaRecordV1Request} [getHederaRecordV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getHederaRecordV1: async (getHederaRecordV1Request?: GetHederaRecordV1Request, options: any = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/get-hedera-record`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter, options.query);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(getHederaRecordV1Request, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Gets past logs, matching the given options.
-         * @param {GetPastLogsV1Request} [getPastLogsV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getPastLogsV1: async (getPastLogsV1Request?: GetPastLogsV1Request, options: any = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/get-past-logs`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter, options.query);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(getPastLogsV1Request, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Executes a transaction on a hedera ledger
-         * @param {GetTransactionV1Request} [getTransactionV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getTransactionV1: async (getTransactionV1Request?: GetTransactionV1Request, options: any = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/get-transaction`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter, options.query);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(getTransactionV1Request, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Invokes a contract on a hedera ledger
-         * @param {InvokeContractV1Request} [invokeContractV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        invokeContractV1: async (invokeContractV1Request?: InvokeContractV1Request, options: any = {}): Promise<RequestArgs> => {
-            const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/invoke-contract`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter, options.query);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(invokeContractV1Request, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Executes a transaction on a hedera ledger
+         * @summary Executes a transaction on a Hedera ledger
          * @param {RunTransactionRequest} [runTransactionRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        runTransactionV1: async (runTransactionRequest?: RunTransactionRequest, options: any = {}): Promise<RequestArgs> => {
+        runTransaction: async (runTransactionRequest?: RunTransactionRequest, options: any = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/run-transaction`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1037,42 +273,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 options: localVarRequestOptions,
             };
         },
-        /**
-         * Obtain signatures of ledger from the corresponding transaction hash.
-         * @summary Obtain signatures of ledger from the corresponding transaction hash.
-         * @param {SignTransactionRequest} signTransactionRequest 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        signTransactionV1: async (signTransactionRequest: SignTransactionRequest, options: any = {}): Promise<RequestArgs> => {
-            // verify required parameter 'signTransactionRequest' is not null or undefined
-            assertParamExists('signTransactionV1', 'signTransactionRequest', signTransactionRequest)
-            const localVarPath = `/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/sign-transaction`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter, options.query);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(signTransactionRequest, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
     }
 };
 
@@ -1085,90 +285,23 @@ export const DefaultApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
-         * @summary Deploys the bytecode of a Solidity contract.
-         * @param {DeployContractSolidityBytecodeV1Request} [deployContractSolidityBytecodeV1Request] 
+         * @summary Get the Prometheus Metrics
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async deployContractSolBytecodeV1(deployContractSolidityBytecodeV1Request?: DeployContractSolidityBytecodeV1Request, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<DeployContractSolidityBytecodeV1Response>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.deployContractSolBytecodeV1(deployContractSolidityBytecodeV1Request, options);
+        async getPrometheusMetricsV1(options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<string>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getPrometheusMetricsV1(options);
             return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
         },
         /**
          * 
-         * @summary Return balance of an address of a given block
-         * @param {GetBalanceV1Request} [getBalanceV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getBalanceV1(getBalanceV1Request?: GetBalanceV1Request, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetBalanceV1Response>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getBalanceV1(getBalanceV1Request, options);
-            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
-        },
-        /**
-         * 
-         * @summary Retrieves an arbitrary record (any piece of information) from the ledger. Ledger records can be call outputs, transaction input, etc.
-         * @param {GetHederaRecordV1Request} [getHederaRecordV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getHederaRecordV1(getHederaRecordV1Request?: GetHederaRecordV1Request, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetHederaRecordV1Response>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getHederaRecordV1(getHederaRecordV1Request, options);
-            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
-        },
-        /**
-         * 
-         * @summary Gets past logs, matching the given options.
-         * @param {GetPastLogsV1Request} [getPastLogsV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getPastLogsV1(getPastLogsV1Request?: GetPastLogsV1Request, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetPastLogsV1Response>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getPastLogsV1(getPastLogsV1Request, options);
-            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
-        },
-        /**
-         * 
-         * @summary Executes a transaction on a hedera ledger
-         * @param {GetTransactionV1Request} [getTransactionV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getTransactionV1(getTransactionV1Request?: GetTransactionV1Request, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetTransactionV1Response>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getTransactionV1(getTransactionV1Request, options);
-            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
-        },
-        /**
-         * 
-         * @summary Invokes a contract on a hedera ledger
-         * @param {InvokeContractV1Request} [invokeContractV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async invokeContractV1(invokeContractV1Request?: InvokeContractV1Request, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<InvokeContractV1Response>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.invokeContractV1(invokeContractV1Request, options);
-            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
-        },
-        /**
-         * 
-         * @summary Executes a transaction on a hedera ledger
+         * @summary Executes a transaction on a Hedera ledger
          * @param {RunTransactionRequest} [runTransactionRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async runTransactionV1(runTransactionRequest?: RunTransactionRequest, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<RunTransactionResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.runTransactionV1(runTransactionRequest, options);
-            return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
-        },
-        /**
-         * Obtain signatures of ledger from the corresponding transaction hash.
-         * @summary Obtain signatures of ledger from the corresponding transaction hash.
-         * @param {SignTransactionRequest} signTransactionRequest 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async signTransactionV1(signTransactionRequest: SignTransactionRequest, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<SignTransactionResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.signTransactionV1(signTransactionRequest, options);
+        async runTransaction(runTransactionRequest?: RunTransactionRequest, options?: any): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<RunTransactionResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.runTransaction(runTransactionRequest, options);
             return createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration);
         },
     }
@@ -1183,83 +316,22 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
     return {
         /**
          * 
-         * @summary Deploys the bytecode of a Solidity contract.
-         * @param {DeployContractSolidityBytecodeV1Request} [deployContractSolidityBytecodeV1Request] 
+         * @summary Get the Prometheus Metrics
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deployContractSolBytecodeV1(deployContractSolidityBytecodeV1Request?: DeployContractSolidityBytecodeV1Request, options?: any): AxiosPromise<DeployContractSolidityBytecodeV1Response> {
-            return localVarFp.deployContractSolBytecodeV1(deployContractSolidityBytecodeV1Request, options).then((request) => request(axios, basePath));
+        getPrometheusMetricsV1(options?: any): AxiosPromise<string> {
+            return localVarFp.getPrometheusMetricsV1(options).then((request) => request(axios, basePath));
         },
         /**
          * 
-         * @summary Return balance of an address of a given block
-         * @param {GetBalanceV1Request} [getBalanceV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getBalanceV1(getBalanceV1Request?: GetBalanceV1Request, options?: any): AxiosPromise<GetBalanceV1Response> {
-            return localVarFp.getBalanceV1(getBalanceV1Request, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Retrieves an arbitrary record (any piece of information) from the ledger. Ledger records can be call outputs, transaction input, etc.
-         * @param {GetHederaRecordV1Request} [getHederaRecordV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getHederaRecordV1(getHederaRecordV1Request?: GetHederaRecordV1Request, options?: any): AxiosPromise<GetHederaRecordV1Response> {
-            return localVarFp.getHederaRecordV1(getHederaRecordV1Request, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Gets past logs, matching the given options.
-         * @param {GetPastLogsV1Request} [getPastLogsV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getPastLogsV1(getPastLogsV1Request?: GetPastLogsV1Request, options?: any): AxiosPromise<GetPastLogsV1Response> {
-            return localVarFp.getPastLogsV1(getPastLogsV1Request, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Executes a transaction on a hedera ledger
-         * @param {GetTransactionV1Request} [getTransactionV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getTransactionV1(getTransactionV1Request?: GetTransactionV1Request, options?: any): AxiosPromise<GetTransactionV1Response> {
-            return localVarFp.getTransactionV1(getTransactionV1Request, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Invokes a contract on a hedera ledger
-         * @param {InvokeContractV1Request} [invokeContractV1Request] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        invokeContractV1(invokeContractV1Request?: InvokeContractV1Request, options?: any): AxiosPromise<InvokeContractV1Response> {
-            return localVarFp.invokeContractV1(invokeContractV1Request, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Executes a transaction on a hedera ledger
+         * @summary Executes a transaction on a Hedera ledger
          * @param {RunTransactionRequest} [runTransactionRequest] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        runTransactionV1(runTransactionRequest?: RunTransactionRequest, options?: any): AxiosPromise<RunTransactionResponse> {
-            return localVarFp.runTransactionV1(runTransactionRequest, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * Obtain signatures of ledger from the corresponding transaction hash.
-         * @summary Obtain signatures of ledger from the corresponding transaction hash.
-         * @param {SignTransactionRequest} signTransactionRequest 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        signTransactionV1(signTransactionRequest: SignTransactionRequest, options?: any): AxiosPromise<SignTransactionResponse> {
-            return localVarFp.signTransactionV1(signTransactionRequest, options).then((request) => request(axios, basePath));
+        runTransaction(runTransactionRequest?: RunTransactionRequest, options?: any): AxiosPromise<RunTransactionResponse> {
+            return localVarFp.runTransaction(runTransactionRequest, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -1273,98 +345,25 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
 export class DefaultApi extends BaseAPI {
     /**
      * 
-     * @summary Deploys the bytecode of a Solidity contract.
-     * @param {DeployContractSolidityBytecodeV1Request} [deployContractSolidityBytecodeV1Request] 
+     * @summary Get the Prometheus Metrics
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApi
      */
-    public deployContractSolBytecodeV1(deployContractSolidityBytecodeV1Request?: DeployContractSolidityBytecodeV1Request, options?: any) {
-        return DefaultApiFp(this.configuration).deployContractSolBytecodeV1(deployContractSolidityBytecodeV1Request, options).then((request) => request(this.axios, this.basePath));
+    public getPrometheusMetricsV1(options?: any) {
+        return DefaultApiFp(this.configuration).getPrometheusMetricsV1(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * 
-     * @summary Return balance of an address of a given block
-     * @param {GetBalanceV1Request} [getBalanceV1Request] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public getBalanceV1(getBalanceV1Request?: GetBalanceV1Request, options?: any) {
-        return DefaultApiFp(this.configuration).getBalanceV1(getBalanceV1Request, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Retrieves an arbitrary record (any piece of information) from the ledger. Ledger records can be call outputs, transaction input, etc.
-     * @param {GetHederaRecordV1Request} [getHederaRecordV1Request] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public getHederaRecordV1(getHederaRecordV1Request?: GetHederaRecordV1Request, options?: any) {
-        return DefaultApiFp(this.configuration).getHederaRecordV1(getHederaRecordV1Request, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Gets past logs, matching the given options.
-     * @param {GetPastLogsV1Request} [getPastLogsV1Request] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public getPastLogsV1(getPastLogsV1Request?: GetPastLogsV1Request, options?: any) {
-        return DefaultApiFp(this.configuration).getPastLogsV1(getPastLogsV1Request, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Executes a transaction on a hedera ledger
-     * @param {GetTransactionV1Request} [getTransactionV1Request] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public getTransactionV1(getTransactionV1Request?: GetTransactionV1Request, options?: any) {
-        return DefaultApiFp(this.configuration).getTransactionV1(getTransactionV1Request, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Invokes a contract on a hedera ledger
-     * @param {InvokeContractV1Request} [invokeContractV1Request] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public invokeContractV1(invokeContractV1Request?: InvokeContractV1Request, options?: any) {
-        return DefaultApiFp(this.configuration).invokeContractV1(invokeContractV1Request, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Executes a transaction on a hedera ledger
+     * @summary Executes a transaction on a Hedera ledger
      * @param {RunTransactionRequest} [runTransactionRequest] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApi
      */
-    public runTransactionV1(runTransactionRequest?: RunTransactionRequest, options?: any) {
-        return DefaultApiFp(this.configuration).runTransactionV1(runTransactionRequest, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * Obtain signatures of ledger from the corresponding transaction hash.
-     * @summary Obtain signatures of ledger from the corresponding transaction hash.
-     * @param {SignTransactionRequest} signTransactionRequest 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public signTransactionV1(signTransactionRequest: SignTransactionRequest, options?: any) {
-        return DefaultApiFp(this.configuration).signTransactionV1(signTransactionRequest, options).then((request) => request(this.axios, this.basePath));
+    public runTransaction(runTransactionRequest?: RunTransactionRequest, options?: any) {
+        return DefaultApiFp(this.configuration).runTransaction(runTransactionRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
