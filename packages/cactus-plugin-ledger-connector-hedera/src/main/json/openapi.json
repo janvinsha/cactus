@@ -1,0 +1,222 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hyperledger Cactus Plugin - Connector Hedera",
+    "description": "Can perform basic tasks on a Hedera ledger",
+    "version": "0.0.1",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "components": {
+    "schemas": {
+      "HederaCommand": {
+        "type": "string",
+        "enum": [
+          "createAccount",
+          "transferHbars",
+          "createTopic",
+          "submitMessage",
+          "createToken",
+          "createNft",
+          "transferToken",
+          "createFile"
+        ],
+        "x-enum-descriptions": [
+          "A transaction that creates a Hedera account",
+          "A transaction that transfers hbars and tokens between Hedera accounts",
+          "A transaction that creates a new topic recognized by the Hedera network",
+          "A transaction that submits a topic message to the Hedera network",
+          "Create a new fungible on the Hedera network",
+          "Create a new Non fungible token (NFT) on the Hedera network",
+          "Transfer tokens from some accounts to other accounts. The transaction must be signed by the sending account",
+          "A transaction that creates a new file on a Hedera network."
+        ],
+        "x-enum-varnames": [
+          "CreateAccount",
+          "TransferHbars",
+          "CreateTopic",
+          "SubmitMessage",
+          "CreateToken",
+          "CreateNft",
+          "TransferToken",
+          "CreateFile"
+        ]
+      },
+      "HederaQuery": {
+        "type": "string",
+        "enum": [
+          "getAccountBalance",
+          "getAccountInfo",
+          "getTopicInfo",
+          "getAccountTokenBalance",
+          "getTokenInfo",
+          "getFileContents",
+          "getFileInfo",
+          "getSmartContractBytecode",
+          "getScheduleInfo"
+        ],
+        "x-enum-descriptions": [
+          "To get the state of an account",
+          "To get details of the account.",
+          "Topic info returns the following values for a topic.",
+          "To get the balance of tokens for an account, you can submit an account balance query. The account balance query will return the tokens the account holds in a list format.",
+          "Gets information about a fungible or non-fungible token instance.",
+          "A query to get the contents of a file",
+          "A query that returns the current state of a file. ",
+          "Make entity in the system, capable of sending transactions or queries, storing signatories, personal data and identifiers.",
+          "A query that returns the bytecode for a smart contract instance**.** Anyone can request the byte code of a smart contract instance on the network.",
+          "A query that returns information about the current state of a schedule transaction on a Hedera network."
+        ],
+        "x-enum-varnames": [
+          "GetAccountBalance",
+          "GetAccountInfo",
+          "GetTopicInfo",
+          "GetAccountTokenBalance",
+          "GetTokenInfo",
+          "GetFileContents",
+          "GetFileInfo",
+          "GetSmartContractBytecode",
+          "GetScheduleInfo"
+        ]
+      },
+      "KeyPair": {
+        "type": "object",
+        "required": ["publicKey", "privateKey"],
+        "properties": {
+          "publicKey": {
+            "description": "SHA-3 ed25519 public keys of length 64 are recommended.",
+            "example": "313a07e6384776ed95447710d15e59148473ccfc052a681317a72a69f2a49910",
+            "type": "string",
+            "nullable": false
+          },
+          "privateKey": {
+            "description": "SHA-3 ed25519 private keys of length 64 are recommended.",
+            "example": "f101537e319568c765b2cc89698325604991dca57b9716b58016b253506cab70",
+            "type": "string",
+            "nullable": false
+          }
+        }
+      },
+      "RunTransactionRequest": {
+        "type": "object",
+        "required": ["commandName", "params"],
+        "additionalProperties": false,
+        "properties": {
+          "commandName": {
+            "type": "string",
+            "nullable": false
+          },
+          "baseConfig": {
+            "$ref": "#/components/schemas/HederaBaseConfig",
+            "nullable": false
+          },
+          "params": {
+            "description": "The list of arguments to pass in to the transaction request.",
+            "type": "array",
+            "items": {}
+          }
+        }
+      },
+      "HederaBaseConfig": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "operatorId": {
+            "type": "string",
+            "nullable": false
+          },
+          "operatorKey": {
+            "type": "string",
+            "nullable": false
+          }
+        }
+      },
+      "RunTransactionResponse": {
+        "type": "object",
+        "required": ["transactionReceipt"],
+        "properties": {
+          "transactionReceipt": {}
+        }
+      },
+      "InvokeContractV1Request": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "contractName": {}
+        }
+      },
+      "InvokeContractV1Response": {
+        "type": "object",
+        "required": ["success"],
+        "properties": {}
+      },
+      "PrometheusExporterMetricsResponse": {
+        "type": "string",
+        "nullable": false
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/run-transaction": {
+      "post": {
+        "x-hyperledger-cactus": {
+          "http": {
+            "verbLowerCase": "post",
+            "path": "/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/run-transaction"
+          }
+        },
+        "operationId": "runTransaction",
+        "summary": "Executes a transaction on a Hedera ledger",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunTransactionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunTransactionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/get-prometheus-exporter-metrics": {
+      "get": {
+        "x-hyperledger-cactus": {
+          "http": {
+            "verbLowerCase": "get",
+            "path": "/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-hedera/get-prometheus-exporter-metrics"
+          }
+        },
+        "operationId": "getPrometheusMetricsV1",
+        "summary": "Get the Prometheus Metrics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrometheusExporterMetricsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
