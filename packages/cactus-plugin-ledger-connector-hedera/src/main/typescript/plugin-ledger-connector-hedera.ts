@@ -4,7 +4,6 @@ const {
   AccountId,
   AccountInfoQuery,
   TopicInfoQuery,
-  TopicMessageQuery,
   TokenInfoQuery,
   Client,
   AccountBalanceQuery,
@@ -59,8 +58,6 @@ import {
 
 export interface IPluginLedgerConnectorHederaOptions
   extends ICactusPluginOptions {
-  rpcApiHttpHost: string;
-  rpcApiWsHost: string;
   pluginRegistry: PluginRegistry;
   prometheusExporter?: PrometheusExporter;
   logLevel?: LogLevelDesc;
@@ -100,8 +97,6 @@ export class PluginLedgerConnectorHedera
   constructor(public readonly options: IPluginLedgerConnectorHederaOptions) {
     const fnTag = `${this.className}#constructor()`;
     Checks.truthy(options, `${fnTag} arg options`);
-    Checks.truthy(options.rpcApiHttpHost, `${fnTag} options.rpcApiHttpHost`);
-    Checks.truthy(options.rpcApiWsHost, `${fnTag} options.rpcApiWsHost`);
     Checks.truthy(options.pluginRegistry, `${fnTag} options.pluginRegistry`);
     Checks.truthy(options.instanceId, `${fnTag} options.instanceId`);
 
@@ -124,6 +119,10 @@ export class PluginLedgerConnectorHedera
   getOpenApiSpec(): unknown {
     throw new Error("Method not implemented.");
   }
+  deployContract(): Promise<never> {
+    throw new RuntimeError("Method not implemented.");
+  }
+
   getConsensusAlgorithmFamily(): Promise<ConsensusAlgorithmFamily> {
     throw new Error("Method not implemented.");
   }
@@ -196,7 +195,7 @@ export class PluginLedgerConnectorHedera
     const operatorKey = PrivateKey.fromString(baseConfig.operatorKey);
     const client = Client.forTestnet();
     switch (req.commandName) {
-      case HederaQuery.GetBalance: {
+      case HederaQuery.GetAccountBalance: {
         try {
           //expects a req.params id of account to check balance for
           const accountId = AccountId.fromString(req.params[0]);
@@ -237,6 +236,7 @@ export class PluginLedgerConnectorHedera
 
       case HederaQuery.GetTopicInfo: {
         try {
+          //expects a topicId
           client.setOperator(operatorId, operatorKey);
           //Create the account info query
           const query = new TopicInfoQuery().setTopicId(req.params[0]);
@@ -247,27 +247,6 @@ export class PluginLedgerConnectorHedera
           //Print the account key to the console
           console.log(info);
           return { transactionReceipt: info };
-        } catch (err) {
-          throw new RuntimeError(err);
-        }
-      }
-
-      //////CHECK THIS METHOD, AN ISSUE MIGHT BE HERE
-      case HederaQuery.GetTopicMessages: {
-        try {
-          client.setOperator(operatorId, operatorKey);
-          //Create the account info query
-          new TopicMessageQuery()
-            .setTopicId(req.params[0])
-            .setStartTime(0)
-            .subscribe(client, (message) => {
-              return {
-                transactionReceipt: Buffer.from(
-                  message.contents,
-                  "utf8",
-                ).toString(),
-              };
-            });
         } catch (err) {
           throw new RuntimeError(err);
         }
@@ -295,6 +274,7 @@ export class PluginLedgerConnectorHedera
 
       case HederaQuery.GetTokenInfo: {
         try {
+          //expects a tokenId
           client.setOperator(operatorId, operatorKey);
           //Create the query
           const query = new TokenInfoQuery().setTokenId(req.params[0]);
@@ -313,6 +293,7 @@ export class PluginLedgerConnectorHedera
 
       case HederaQuery.GetFileContents: {
         try {
+          //expects a fileId
           client.setOperator(operatorId, operatorKey);
 
           const query = new FileContentsQuery().setFileId(req.params[0]);
@@ -343,6 +324,7 @@ export class PluginLedgerConnectorHedera
 
       case HederaQuery.GetSmartContractBytecode: {
         try {
+          //expects a contractId
           client.setOperator(operatorId, operatorKey);
           //Create the query
           const query = new ContractByteCodeQuery().setContractId(
@@ -359,6 +341,7 @@ export class PluginLedgerConnectorHedera
 
       case HederaQuery.GetScheduleInfo: {
         try {
+          //expects a schedule id
           client.setOperator(operatorId, operatorKey);
           //Create the query
           const query = new ScheduleInfoQuery().setScheduleId(req.params[0]);
@@ -606,7 +589,7 @@ export class PluginLedgerConnectorHedera
         }
       }
 
-      case HederaCommand.createFile: {
+      case HederaCommand.CreateFile: {
         //this method creates a file
         //expects an filePublicKey, file privateKey, file content,
         try {

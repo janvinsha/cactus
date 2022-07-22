@@ -103,10 +103,6 @@ export enum HederaQuery {
     */
     GetTopicInfo = 'getTopicInfo',
     /**
-    * Subscribe to a topic ID&#39;s messages from a mirror node. You will receive all messages for the specified topic or within the defined start and end time
-    */
-    GetTopicMessages = 'getTopicMessages',
-    /**
     * To get the balance of tokens for an account, you can submit an account balance query. The account balance query will return the tokens the account holds in a list format.
     */
     GetAccountTokenBalance = 'getAccountTokenBalance',
