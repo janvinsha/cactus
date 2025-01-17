@@ -5,12 +5,10 @@ import {
   Containers,
   CordaTestLedger,
   pruneDockerAllIfGithubAction,
+  CordaConnectorContainer,
+  SampleCordappEnum,
 } from "@hyperledger/cactus-test-tooling";
 import { LogLevelDesc } from "@hyperledger/cactus-common";
-import {
-  SampleCordappEnum,
-  CordaConnectorContainer,
-} from "@hyperledger/cactus-test-tooling";
 
 import {
   CordappDeploymentConfig,
@@ -18,12 +16,15 @@ import {
   DeployContractJarsV1Request,
   FlowInvocationType,
   InvokeContractV1Request,
-  JvmTypeKind,
 } from "../../../main/typescript/generated/openapi/typescript-axios/index";
 import { Configuration } from "@hyperledger/cactus-core-api";
+import { createJvmString } from "../../../main/typescript/jvm/serde/factory/create-jvm-string";
+import { createJvmInt } from "../../../main/typescript";
 
 const testCase = "Tests are passing on the JVM side";
-const logLevel: LogLevelDesc = "TRACE";
+const logLevel: LogLevelDesc = "INFO";
+const logLevelJvmApp: LogLevelDesc = "INFO";
+const logLevelJvmRoot: LogLevelDesc = "WARN";
 
 test.onFailure(async () => {
   await Containers.logDiagnostics({ logLevel });
@@ -38,8 +39,9 @@ test("BEFORE " + testCase, async (t: Test) => {
 test(testCase, async (t: Test) => {
   const ledger = new CordaTestLedger({
     imageName: "ghcr.io/hyperledger/cactus-corda-4-8-all-in-one-flowdb",
-    imageVersion: "2021-11-23--feat-1493",
+    imageVersion: "2024-07-08-hotfix-1",
     logLevel,
+    rpcPortA: 10006, // @see: ./tools/docker/corda-all-in-one/corda-v4_8-flowdb/build.gradle
   });
   t.ok(ledger, "CordaTestLedger v4.8 instantaited OK");
 
@@ -48,7 +50,7 @@ test(testCase, async (t: Test) => {
     await ledger.destroy();
     await pruneDockerAllIfGithubAction({ logLevel });
   });
-  const ledgerContainer = await ledger.start();
+  const ledgerContainer = await ledger.start(false);
   t.ok(
     ledgerContainer,
     "CordaTestLedger v4.8 container truthy post-start() OK",
@@ -66,13 +68,14 @@ test(testCase, async (t: Test) => {
   t.comment(`Internal IP (based on default gateway): ${internalIp}`);
 
   const partyARpcUsername = "user1";
-  const partyARpcPassword = "password";
+  const partyARpcPassword = "test";
   const springAppConfig = {
     logging: {
       level: {
-        root: "INFO",
-        "net.corda": "INFO",
-        "org.hyperledger.cactus": "DEBUG",
+        root: logLevelJvmRoot,
+        "net.corda": logLevelJvmRoot,
+        "org.hyperledger.cactus": logLevelJvmApp,
+        "org.hyperledger.cacti": logLevelJvmApp,
       },
     },
     cactus: {
@@ -92,8 +95,6 @@ test(testCase, async (t: Test) => {
 
   const connector = new CordaConnectorContainer({
     logLevel,
-    imageName: "ghcr.io/hyperledger/cactus-connector-corda-server",
-    imageVersion: "2021-11-23--feat-1493",
     envVars: [envVarSpringAppJson],
   });
   t.ok(CordaConnectorContainer, "CordaConnectorContainer instantiated OK");
@@ -106,7 +107,7 @@ test(testCase, async (t: Test) => {
     }
   });
 
-  const connectorContainer = await connector.start();
+  const connectorContainer = await connector.start(false);
   t.ok(connectorContainer, "CordaConnectorContainer started OK");
 
   await connector.logDebugPorts();
@@ -141,47 +142,33 @@ test(testCase, async (t: Test) => {
   const finalValue = 11;
 
   // add a new token value
-  const reqAdd: InvokeContractV1Request = ({
+  const reqAdd: InvokeContractV1Request = {
     timeoutMs: 60000,
     flowFullClassName: "net.corda.samples.flowdb.AddTokenValueFlow",
     flowInvocationType: FlowInvocationType.FlowDynamic,
     params: [
-      {
-        jvmTypeKind: JvmTypeKind.Primitive,
-        jvmType: {
-          fqClassName: "java.lang.String",
-        },
-        primitiveValue: myToken,
-      },
-      {
-        jvmTypeKind: JvmTypeKind.Primitive,
-        jvmType: {
-          fqClassName: "java.lang.Integer",
-        },
-        primitiveValue: initialValue,
-      },
+      createJvmString({
+        data: myToken,
+      }),
+      createJvmInt(initialValue),
     ],
-  } as unknown) as InvokeContractV1Request;
+  };
 
   const resAdd = await apiClient.invokeContractV1(reqAdd);
   t.ok(resAdd, "InvokeContractV1Request truthy OK");
   t.equal(resAdd.status, 200, "InvokeContractV1Request status code === 200 OK");
 
   // query a token value
-  const reqQuery: InvokeContractV1Request = ({
+  const reqQuery: InvokeContractV1Request = {
     timeoutMs: 60000,
     flowFullClassName: "net.corda.samples.flowdb.QueryTokenValueFlow",
     flowInvocationType: FlowInvocationType.FlowDynamic,
     params: [
-      {
-        jvmTypeKind: JvmTypeKind.Primitive,
-        jvmType: {
-          fqClassName: "java.lang.String",
-        },
-        primitiveValue: myToken,
-      },
+      createJvmString({
+        data: myToken,
+      }),
     ],
-  } as unknown) as InvokeContractV1Request;
+  };
 
   const resQuery = await apiClient.invokeContractV1(reqQuery);
   t.ok(resQuery, "InvokeContractV1Request truthy OK");
@@ -197,27 +184,17 @@ test(testCase, async (t: Test) => {
   );
 
   // update a token value
-  const reqUpd: InvokeContractV1Request = ({
+  const reqUpd: InvokeContractV1Request = {
     timeoutMs: 60000,
     flowFullClassName: "net.corda.samples.flowdb.UpdateTokenValueFlow",
     flowInvocationType: FlowInvocationType.FlowDynamic,
     params: [
-      {
-        jvmTypeKind: JvmTypeKind.Primitive,
-        jvmType: {
-          fqClassName: "java.lang.String",
-        },
-        primitiveValue: myToken,
-      },
-      {
-        jvmTypeKind: JvmTypeKind.Primitive,
-        jvmType: {
-          fqClassName: "java.lang.Integer",
-        },
-        primitiveValue: finalValue,
-      },
+      createJvmString({
+        data: myToken,
+      }),
+      createJvmInt(finalValue),
     ],
-  } as unknown) as InvokeContractV1Request;
+  };
 
   const resUpd = await apiClient.invokeContractV1(reqUpd);
   t.ok(resUpd, "InvokeContractV1Request truthy OK");

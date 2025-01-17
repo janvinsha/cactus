@@ -1,7 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { Component, Inject, Input, OnInit } from "@angular/core";
-import { FormGroup, FormBuilder, Validators } from "@angular/forms";
+import {
+  UntypedFormGroup,
+  UntypedFormBuilder,
+  Validators,
+} from "@angular/forms";
 import { ModalController } from "@ionic/angular";
 
 import { ApiClient } from "@hyperledger/cactus-api-client";
@@ -13,7 +17,7 @@ import {
 } from "@hyperledger/cactus-example-supply-chain-business-logic-plugin";
 
 import { Logger, LoggerProvider } from "@hyperledger/cactus-common";
-import { QUORUM_DEMO_LEDGER_ID } from "src/constants";
+import { XDAI_BESU_DEMO_LEDGER_ID } from "../../../constants";
 
 import { AuthConfig } from "../../common/auth-config";
 
@@ -25,7 +29,7 @@ import { AuthConfig } from "../../common/auth-config";
 export class ShipmentDetailPage implements OnInit {
   private readonly log: Logger;
   private _supplyChainApi: SupplyChainApi | undefined;
-  public form: FormGroup;
+  public form: UntypedFormGroup;
   @Input()
   public shipment: Shipment;
   public bookshelves: Bookshelf[];
@@ -33,9 +37,9 @@ export class ShipmentDetailPage implements OnInit {
 
   constructor(
     private readonly baseClient: ApiClient,
-    @Inject(QUORUM_DEMO_LEDGER_ID) private readonly quorumLedgerId: string,
+    @Inject(XDAI_BESU_DEMO_LEDGER_ID) private readonly xdaiBesuLedgerId: string,
     public readonly modalController: ModalController,
-    public readonly formBuilder: FormBuilder,
+    public readonly formBuilder: UntypedFormBuilder,
   ) {
     this.log = LoggerProvider.getOrCreate({ label: "ShipmentDetailPage" });
   }
@@ -52,7 +56,7 @@ export class ShipmentDetailPage implements OnInit {
     this.log.debug("component initialized.", this.shipment);
 
     this._supplyChainApi = await this.baseClient.ofLedger(
-      this.quorumLedgerId,
+      this.xdaiBesuLedgerId,
       SupplyChainApi,
       {
         baseOptions: {

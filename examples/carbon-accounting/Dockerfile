@@ -1,4 +1,4 @@
-FROM cruizba/ubuntu-dind:19.03.11 as runner
+FROM cruizba/ubuntu-dind:20.10.18 as runner
 
 USER root
 
@@ -33,12 +33,14 @@ WORKDIR ${APP}
 
 SHELL ["/bin/bash", "--login", "-i", "-c"]
 # Installing Node Version Manager (nvm)
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
 RUN source ~/.bashrc && \
-    nvm install 16.8.0 && \
-    npm install -g yarn && \
-    yarn add @hyperledger/cactus-example-carbon-accounting-backend@0.9.1-ci-942.cbb849c6.35 --ignore-engines --production
-
+    nvm install 20.11.1 && \
+    npm install --location=global yarn && \
+    yarn config set nodeLinker node-modules && \
+    yarn set version 4.1.0 && \
+    yarn add @hyperledger/cactus-example-carbon-accounting-backend@2.1.0
+    
 SHELL ["/bin/bash", "--login", "-c"]
 
 
@@ -46,9 +48,6 @@ COPY --chown=${APP_USER}:${APP_USER} ./examples/carbon-accounting/healthcheck.sh
 
 ENV AUTHORIZATION_CONFIG_JSON="{}"
 ENV AUTHORIZATION_PROTOCOL=NONE
-ENV CACTUS_NODE_ID=-
-ENV CONSORTIUM_ID=-
-ENV KEY_PAIR_PEM=-
 ENV COCKPIT_WWW_ROOT=/usr/src/app/node_modules/@hyperledger/cactus-example-carbon-accounting-frontend/www/
 ENV COCKPIT_TLS_ENABLED=false
 ENV COCKPIT_CORS_DOMAIN_CSV=\*

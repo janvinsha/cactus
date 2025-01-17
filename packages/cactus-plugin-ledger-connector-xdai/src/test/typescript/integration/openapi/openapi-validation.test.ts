@@ -99,7 +99,7 @@ test(testCase, async (t: Test) => {
   expressApp.use(bodyParser.json({ limit: "250mb" }));
   const server = http.createServer(expressApp);
   const listenOptions: IListenOptions = {
-    hostname: "localhost",
+    hostname: "127.0.0.1",
     port: 0,
     server,
   };
@@ -163,7 +163,7 @@ test(testCase, async (t: Test) => {
         gas: 1000000,
       };
       await apiClient.deployContractV1(
-        (parameters as unknown) as DeployContractV1Request,
+        parameters as unknown as DeployContractV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -172,7 +172,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fDeploy} without required keychainId: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: { path: string }) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("keychainId"),
@@ -205,7 +205,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fDeploy} with fake=4: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: { path: string }) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("fake"),
@@ -257,7 +257,7 @@ test(testCase, async (t: Test) => {
         },
       };
       await apiClient.invokeContractV1(
-        (parameters as unknown) as InvokeContractV1Request,
+        parameters as unknown as InvokeContractV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -266,7 +266,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fInvoke} without required contractName: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: { path: string }) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("contractName"),
@@ -294,7 +294,7 @@ test(testCase, async (t: Test) => {
         fake: 4,
       };
       await apiClient.invokeContractV1(
-        (parameters as any) as InvokeContractV1Request,
+        parameters as any as InvokeContractV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -303,7 +303,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fInvoke} with fake=4: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: { path: string }) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("fake"),
@@ -357,7 +357,7 @@ test(testCase, async (t: Test) => {
         },
       };
       await apiClient.runTransactionV1(
-        (parameters as any) as RunTransactionV1Request,
+        parameters as any as RunTransactionV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -366,7 +366,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fRun} without required consistencyStrategy: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: { path: string }) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("consistencyStrategy"),
@@ -399,7 +399,7 @@ test(testCase, async (t: Test) => {
         fake: 4,
       };
       await apiClient.runTransactionV1(
-        (parameters as any) as RunTransactionV1Request,
+        parameters as any as RunTransactionV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -408,7 +408,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fRun} with fake=4: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: { path: string }) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("fake"),

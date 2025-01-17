@@ -6,6 +6,7 @@ import {
   LogLevelDesc,
   LoggerProvider,
   IAsyncProvider,
+  safeStringifyException,
 } from "@hyperledger/cactus-common";
 import {
   IEndpointAuthzOptions,
@@ -19,10 +20,10 @@ import {
 } from "@hyperledger/cactus-core";
 
 import {
-  DefaultApi as QuorumApi,
+  DefaultApi as XdaiApi,
   EthContractInvocationType,
   Web3SigningCredential,
-} from "@hyperledger/cactus-plugin-ledger-connector-quorum";
+} from "@hyperledger/cactus-plugin-ledger-connector-xdai";
 
 import OAS from "../../../json/openapi.json";
 import { InsertBambooHarvestRequest } from "../../generated/openapi/typescript-axios";
@@ -31,7 +32,7 @@ export interface IInsertBambooHarvestEndpointOptions {
   logLevel?: LogLevelDesc;
   contractName: string;
   //  contractAbi: any;
-  apiClient: QuorumApi;
+  apiClient: XdaiApi;
   web3SigningCredential: Web3SigningCredential;
   keychainId: string;
   authorizationOptionsProvider?: AuthorizationOptionsProvider;
@@ -74,7 +75,7 @@ export class InsertBambooHarvestEndpoint implements IWebServiceEndpoint {
     this.log.debug(`Instantiated ${this.className} OK`);
   }
 
-  public getOasPath() {
+  public getOasPath(): (typeof OAS.paths)["/api/v1/plugins/@hyperledger/cactus-example-supply-chain-backend/insert-bamboo-harvest"] {
     return OAS.paths[
       "/api/v1/plugins/@hyperledger/cactus-example-supply-chain-backend/insert-bamboo-harvest"
     ];
@@ -93,12 +94,12 @@ export class InsertBambooHarvestEndpoint implements IWebServiceEndpoint {
 
   public getVerbLowerCase(): string {
     const apiPath = this.getOasPath();
-    return apiPath.post["x-hyperledger-cactus"].http.verbLowerCase;
+    return apiPath.post["x-hyperledger-cacti"].http.verbLowerCase;
   }
 
   public getPath(): string {
     const apiPath = this.getOasPath();
-    return apiPath.post["x-hyperledger-cactus"].http.path;
+    return apiPath.post["x-hyperledger-cacti"].http.path;
   }
 
   public getExpressRequestHandler(): IExpressRequestHandler {
@@ -126,10 +127,11 @@ export class InsertBambooHarvestEndpoint implements IWebServiceEndpoint {
       const body = { success, callOutput, transactionReceipt };
       res.status(200);
       res.json(body);
-    } catch (ex) {
+    } catch (ex: unknown) {
+      const exStr = safeStringifyException(ex);
       this.log.debug(`${tag} Failed to serve request:`, ex);
       res.status(500);
-      res.json({ error: ex.stack });
+      res.json({ error: exStr });
     }
   }
 }

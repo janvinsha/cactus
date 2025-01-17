@@ -11,7 +11,9 @@
 - [Containerization](#containerization)
   - [Building the container image locally](#building-the-container-image-locally)
   - [Running the container image locally](#running-the-container-image-locally)
+  - [Running Locally Built Image with Locally Modified Plugins Without npm/ghcr Publishishing](#running-locally-built-image-with-locally-modified-plugins-without-npmghcr-publishishing)
   - [Testing API calls with the container](#testing-api-calls-with-the-container)
+  - [Running a Security Scan on the Built Container Image](#running-a-security-scan-on-the-built-container-image)
 - [Prometheus Exporter](#prometheus-exporter)
   - [Usage Prometheus](#usage-prometheus)
   - [Prometheus Integration](#prometheus-integration)
@@ -216,15 +218,21 @@ of the machine they are hosted on:
 
 ### Building the container image locally
 
-In the Cactus project root say:
+In the project root directory run these commands on the terminal:
 
 ```sh
-DOCKER_BUILDKIT=1 docker build -f ./packages/cactus-cmd-api-server/Dockerfile . -t cas -t cactus-api-server
+yarn configure
+yarn lerna run build:bundle --scope=@hyperledger/cactus-cmd-api-server
+
 ```
 
-Build with a specific version of the npm package:
 ```sh
-DOCKER_BUILDKIT=1 docker build --build-arg NPM_PKG_VERSION=main -f ./packages/cactus-cmd-api-server/Dockerfile . -t cas -t cactus-api-server
+DOCKER_BUILDKIT=1 docker build \
+  --file ./packages/cactus-cmd-api-server/cmd-api-server.Dockerfile \
+  ./packages/cactus-cmd-api-server \
+   --tag cas \
+   --tag cmd-api-server \
+   --tag ghcr.io/hyperledger/cactus-cmd-api-server:$(date +"%Y-%m-%dT%H-%M-%S" --utc)-dev-$(git rev-parse --short HEAD)
 ```
 
 ### Running the container image locally
@@ -235,12 +243,21 @@ See section [Building the container image locally](#building-the-container-image
 Once you've built the container, the following commands should work:
 
 - Launch container - no plugins, default configuration
-
   ```sh
   docker run \
     --rm \
     --publish 3000:3000 \
     --publish 4000:4000 \
+    --env AUTHORIZATION_PROTOCOL='NONE' \
+    --env AUTHORIZATION_CONFIG_JSON='{}' \
+    --env GRPC_TLS_ENABLED=false \
+    --env API_TLS_CERT_PEM=- \
+    --env API_TLS_CLIENT_CA_PEM=- \
+    --env API_TLS_KEY_PEM=- \
+    --env API_TLS_ENABLED=false \
+    --env API_MTLS_ENABLED=false \
+    --env API_HOST=0.0.0.0 \
+    --env LOG_LEVEL=INFO \
     cas
   ```
 
@@ -251,9 +268,19 @@ Once you've built the container, the following commands should work:
     --rm \
     --publish 3000:3000 \
     --publish 4000:4000 \
+    --env AUTHORIZATION_PROTOCOL='NONE' \
+    --env AUTHORIZATION_CONFIG_JSON='{}' \
+    --env GRPC_TLS_ENABLED=false \
+    --env API_TLS_CERT_PEM=- \
+    --env API_TLS_CLIENT_CA_PEM=- \
+    --env API_TLS_KEY_PEM=- \
+    --env API_TLS_ENABLED=false \
+    --env API_MTLS_ENABLED=false \
+    --env API_HOST=0.0.0.0 \
+    --env LOG_LEVEL=INFO \
     cas \
-      ./node_modules/.bin/cactusapi \
-      --plugins='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": { "connectionProfile": {}, "instanceId": "some-unique-instance-id"}}]'
+      node index.js \
+      --plugins='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": { "version": "dev", "peerBinary":"/fabric-samples/bin/peer", "connectionProfile": {}, "instanceId": "some-unique-instance-id"}}]'
   ```
 
 - Launch container with plugin configuration as an **environment variable**:
@@ -262,7 +289,17 @@ Once you've built the container, the following commands should work:
     --rm \
     --publish 3000:3000 \
     --publish 4000:4000 \
-    --env PLUGINS='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": {"rpcApiHttpHost": "http://localhost:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]' \
+    --env AUTHORIZATION_PROTOCOL='NONE' \
+    --env AUTHORIZATION_CONFIG_JSON='{}' \
+    --env GRPC_TLS_ENABLED=false \
+    --env API_TLS_CERT_PEM=- \
+    --env API_TLS_CLIENT_CA_PEM=- \
+    --env API_TLS_KEY_PEM=- \
+    --env API_TLS_ENABLED=false \
+    --env API_MTLS_ENABLED=false \
+    --env API_HOST=0.0.0.0 \
+    --env LOG_LEVEL=INFO \
+    --env PLUGINS='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": { "rpcApiWsHost": "http://127.0.0.1:8546", "rpcApiHttpHost": "http://127.0.0.1:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]' \
     cas
   ```
 
@@ -272,25 +309,75 @@ Once you've built the container, the following commands should work:
     --rm \
     --publish 3000:3000 \
     --publish 4000:4000 \
+    --env AUTHORIZATION_PROTOCOL='NONE' \
+    --env AUTHORIZATION_CONFIG_JSON='{}' \
+    --env GRPC_TLS_ENABLED=false \
+    --env API_TLS_CERT_PEM=- \
+    --env API_TLS_CLIENT_CA_PEM=- \
+    --env API_TLS_KEY_PEM=- \
+    --env API_TLS_ENABLED=false \
+    --env API_MTLS_ENABLED=false \
+    --env API_HOST=0.0.0.0 \
+    --env LOG_LEVEL=INFO \
     cas \
-      ./node_modules/.bin/cactusapi \
-      --plugins='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": {"rpcApiHttpHost": "http://localhost:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]'
+      node index.js \
+      --plugins='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": { "rpcApiWsHost": "http://127.0.0.1:8546", "rpcApiHttpHost": "http://127.0.0.1:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]'
   ```
 
 - Launch container with **configuration file** mounted from host machine:
   ```sh
 
-  echo '[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": {"rpcApiHttpHost": "http://localhost:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]' > cactus.json
+  echo '{"plugins": [{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": { "rpcApiWsHost": "http://127.0.0.1:8546", "rpcApiHttpHost": "http://127.0.0.1:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]}' > .cacti-config.json
 
   docker run \
     --rm \
     --publish 3000:3000 \
     --publish 4000:4000 \
-    --mount type=bind,source="$(pwd)"/cactus.json,target=/cactus.json \
+    --env AUTHORIZATION_PROTOCOL='NONE' \
+    --env AUTHORIZATION_CONFIG_JSON='{}' \
+    --env GRPC_TLS_ENABLED=false \
+    --env API_TLS_CERT_PEM=- \
+    --env API_TLS_CLIENT_CA_PEM=- \
+    --env API_TLS_KEY_PEM=- \
+    --env API_TLS_ENABLED=false \
+    --env API_MTLS_ENABLED=false \
+    --env API_HOST=0.0.0.0 \
+    --env LOG_LEVEL=INFO \
+    --mount type=bind,source="$(pwd)"/.cacti-config.json,target=/.cacti-config.json \
     cas \
-      ./node_modules/.bin/cactusapi \
-      --config-file=/cactus.json
+      node index.js \
+      --config-file=/.cacti-config.json
   ```
+
+### Running Locally Built Image with Locally Modified Plugins Without npm/ghcr Publishishing
+
+It can be very inconvenient to have to publish npm packages just for testing. If you'd like to
+evaluate some changes you've made in a plugin, but need to have the plugin installed in the API 
+server for it then you can use a command like the one below to make it use the local version with your changes.
+
+There are two things necessary for this scenario to work:
+1. You must mount the project folder of your host machine onto the container's file-system. See `--volume ${PWD}:/usr/src/cacti` parameter below in the example command. This (when executed from your Cacti repository root) will mount the entire project within the container under `/usr/src/cacti/`. The reason why this is necessary is because this will allow us to instruct the API server through configuration that when it is running the besu connector plugin, it should not pull it from the registry, but instead directly from the file-system from a given path that we provide in the configuration.
+2. You must specify the `packageSrc` optional parameter when declaring the constructor options of the plugin you are going to install. See the section of the configuration below that looks like this: `"options": { "packageSrc": "/usr/src/cacti/packages/cactus-plugin-ledger-connector-besu", .. }`. What the latter instructs the API server to do is the installation source override mentioned earlier: It will import and run an instance of the Besu connector plugin which was built locally on your host computer. Of course for this to work you have to make sure to have a working build so that the `./dist/` folder of your plugin contains the actual `.js` source files which the API server will then import.
+
+```sh
+docker run \
+  --rm \
+  --volume ${PWD}:/usr/src/cacti \
+  --publish 3000:3000 \
+  --publish 4000:4000 \
+  --env AUTHORIZATION_PROTOCOL='NONE' \
+  --env AUTHORIZATION_CONFIG_JSON='{}' \
+  --env GRPC_TLS_ENABLED=false \
+  --env API_TLS_CERT_PEM=- \
+  --env API_TLS_CLIENT_CA_PEM=- \
+  --env API_TLS_KEY_PEM=- \
+  --env API_TLS_ENABLED=false \
+  --env API_MTLS_ENABLED=false \
+  --env API_HOST=0.0.0.0 \
+  --env LOG_LEVEL=DEBUG \
+  --env PLUGINS='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": { "packageSrc": "/usr/src/cacti/packages/cactus-plugin-ledger-connector-besu", "rpcApiWsHost": "http://127.0.0.1:8546", "rpcApiHttpHost": "http://127.0.0.1:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]' \
+  cas
+```
 
 ### Testing API calls with the container
 
@@ -298,7 +385,11 @@ Don't have a Besu network on hand to test with? Test or develop against our Besu
 
 1. Terminal Window 1 (Ledger)
     ```sh
-    docker run --publish 8545:8545 hyperledger/cactus-besu-all-in-one:latest
+    docker run \
+      --rm \
+      --publish 8545:8545 \
+      --publish 8546:8546 \
+      ghcr.io/hyperledger/cactus-besu-all-in-one:2024-07-03-08925ff
     ```
 
 2. Terminal Window 2 (Cactus API Server)
@@ -308,7 +399,17 @@ Don't have a Besu network on hand to test with? Test or develop against our Besu
       --rm \
       --publish 3000:3000 \
       --publish 4000:4000 \
-      --env PLUGINS='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": {"rpcApiHttpHost": "http://localhost:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]' \
+      --env AUTHORIZATION_PROTOCOL='NONE' \
+      --env AUTHORIZATION_CONFIG_JSON='{}' \
+      --env GRPC_TLS_ENABLED=false \
+      --env API_TLS_CERT_PEM=- \
+      --env API_TLS_CLIENT_CA_PEM=- \
+      --env API_TLS_KEY_PEM=- \
+      --env API_TLS_ENABLED=false \
+      --env API_MTLS_ENABLED=false \
+      --env API_HOST=0.0.0.0 \
+      --env LOG_LEVEL=INFO \
+      --env PLUGINS='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-besu", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": { "rpcApiWsHost": "http://127.0.0.1:8546", "rpcApiHttpHost": "http://127.0.0.1:8545", "instanceId": "some-unique-besu-connector-instance-id"}}]' \
       cas
     ```
 
@@ -359,7 +460,18 @@ Don't have a Besu network on hand to test with? Test or develop against our Besu
     }
     ```
 
+### Running a Security Scan on the Built Container Image
 
+After having built the container image with the command(s) described above, you can
+run the Trivy tool to scan for security vulnerabilities.
+
+> The `trivy` binary is preinstalled within the VSCode dev container so make sure
+> to open the project in that if you would prefer not to install Trivy on your host
+> operating system.
+
+```sh
+trivy image --scanners=vuln --vuln-type=os,library --severity=CRITICAL --severity=HIGH cas
+```
 
 ## Prometheus Exporter
 This class creates a prometheus exporter, which scrapes the total Cactus node count.

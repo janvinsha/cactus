@@ -26,6 +26,7 @@ export interface ICordaTestLedgerConstructorOptions {
   imageVersion?: string;
   imageName?: string;
   rpcPortNotary?: number;
+  sshPort?: number;
   rpcPortA?: number;
   rpcPortB?: number;
   rpcPortC?: number;
@@ -41,6 +42,7 @@ const DEFAULTS = Object.freeze({
   imageVersion: "2021-03-01-7e07b5b",
   imageName: "petermetz/cactus-corda-4-6-all-in-one-obligation",
   rpcPortNotary: 10003,
+  sshPort: 22,
   rpcPortA: 10008,
   rpcPortB: 10011,
   rpcPortC: 10014,
@@ -59,6 +61,7 @@ export const JOI_SCHEMA: Joi.Schema = Joi.object().keys({
   imageVersion: Joi.string().min(5).required(),
   imageName: Joi.string().min(1).required(),
   rpcPortNotary: Joi.number().min(1).max(65535).required(),
+  sshPort: Joi.number().min(1).max(65535).required(),
   rpcPortA: Joi.number().min(1).max(65535).required(),
   rpcPortB: Joi.number().min(1).max(65535).required(),
   rpcPortC: Joi.number().min(1).max(65535).required(),
@@ -78,6 +81,7 @@ export class CordaTestLedger implements ITestLedger {
   public readonly imageVersion: string;
   public readonly imageName: string;
   public readonly rpcPortNotary: number;
+  public readonly sshPort: number;
   public readonly rpcPortA: number;
   public readonly rpcPortB: number;
   public readonly rpcPortC: number;
@@ -93,6 +97,7 @@ export class CordaTestLedger implements ITestLedger {
     this.imageVersion = opts.imageVersion || DEFAULTS.imageVersion;
     this.imageName = opts.imageName || DEFAULTS.imageName;
 
+    this.sshPort = opts.sshPort || DEFAULTS.sshPort;
     this.rpcPortA = opts.rpcPortA || DEFAULTS.rpcPortA;
     this.rpcPortB = opts.rpcPortB || DEFAULTS.rpcPortB;
     this.rpcPortC = opts.rpcPortC || DEFAULTS.rpcPortC;
@@ -143,15 +148,17 @@ export class CordaTestLedger implements ITestLedger {
             [`${this.rpcPortA}/tcp`]: {}, // corda PartyA RPC
             [`${this.rpcPortB}/tcp`]: {}, // corda PartyB RPC
             [`${this.rpcPortC}/tcp`]: {}, // corda PartyC RPC
-            "22/tcp": {}, // ssh server
+            [`${this.sshPort}/tcp`]: {}, // ssh server
           },
-          PublishAllPorts: true,
+          HostConfig: {
+            PublishAllPorts: true,
+          },
           // TODO: this can be removed once the new docker image is published and
           // specified as the default one to be used by the tests.
           // Healthcheck: {
           //   Test: [
           //     "CMD-SHELL",
-          //     `curl -v 'http://localhost:7005/jolokia/exec/org.apache.activemq.artemis:address=%22rpc.server%22,broker=%22RPC%22,component=addresses,queue=%22rpc.server%22,routing-type=%22multicast%22,subcomponent=queues/countMessages()/'`,
+          //     `curl -v 'http://127.0.0.1:7005/jolokia/exec/org.apache.activemq.artemis:address=%22rpc.server%22,broker=%22RPC%22,component=addresses,queue=%22rpc.server%22,routing-type=%22multicast%22,subcomponent=queues/countMessages()/'`,
           //   ],
           //   Interval: 1000000000, // 1 second
           //   Timeout: 3000000000, // 3 seconds
@@ -203,9 +210,11 @@ export class CordaTestLedger implements ITestLedger {
 
   public async logDebugPorts(): Promise<void> {
     const partyNotaryRpcPort = await this.getRpcNotaryPublicPort();
+    const sshPort = await this.getSSHPublicPort();
     const partyARpcPort = await this.getRpcAPublicPort();
     const partyBRpcPort = await this.getRpcBPublicPort();
     const partyCRpcPort = await this.getRpcCPublicPort();
+    this.log.info(`AIO Image SSH Port: ${sshPort}`);
     this.log.info(`Party Notary RPC Port: ${partyNotaryRpcPort}`);
     this.log.info(`Party A RPC Port: ${partyARpcPort}`);
     this.log.info(`Party B RPC Port: ${partyBRpcPort}`);
@@ -248,12 +257,11 @@ export class CordaTestLedger implements ITestLedger {
   public async pullCordappJars(
     sampleCordapp: SampleCordappEnum,
   ): Promise<ICordappJarFile[]> {
+    await new Promise((resolve2) => setTimeout(resolve2, 1000));
     const fnTag = `${this.className}.pullCordappJars()`;
     Checks.truthy(sampleCordapp, `${fnTag}:sampleCordapp`);
     await this.buildCordapp(sampleCordapp);
     const container = this.getContainer();
-    // const cordappRootDir = SAMPLE_CORDAPP_ROOT_DIRS[sampleCordapp];
-    // const cordaRelativePaths = SAMPLE_CORDAPP_JAR_RELATIVE_PATHS[sampleCordapp];
     const cordappData = SAMPLE_CORDAPP_DATA[sampleCordapp];
 
     const jars: ICordappJarFile[] = [];
@@ -278,6 +286,7 @@ export class CordaTestLedger implements ITestLedger {
   }
 
   public async buildCordapp(sampleCordapp: SampleCordappEnum): Promise<void> {
+    await new Promise((resolve2) => setTimeout(resolve2, 1000));
     const fnTag = `${this.className}.buildCordapp()`;
     Checks.truthy(sampleCordapp, `${fnTag}:sampleCordapp`);
     const sshConfig = await this.getSshConfig();
@@ -300,7 +309,55 @@ export class CordaTestLedger implements ITestLedger {
       this.log.debug(`${fnTag}:signal=%o`, signal);
       this.log.debug(`${fnTag}:stderr=%o`, stderr);
       this.log.debug(`${fnTag}:stdout=%o`, stdout);
-      // const jarPath = `${cwd}contracts/build/libs/contracts-1.0.jar`;
+    } finally {
+      ssh.dispose();
+    }
+  }
+
+  /**
+   * Used for deleting the exiting build files of a sample cordapp. This is
+   * useful because if you are writing a test case that builds the jars and then
+   * uploads them as part of the deployment to the corda node then you end up with
+   * a duplicate contract error that looks something like this (on a single row):
+   *
+   * ```sh
+   * E 04:20:01 1 NodeStartupLogging. - The CorDapp (
+   * name: Negotiation CorDapp,
+   * file: ADVANCED_NEGOTIATION_workflows-0.2) is installed multiple times on the node.
+   * The following files correspond to the exact same content:
+   * [workflows-0.2]
+   * [Error Code: cordapp-duplicate-cordapps-installed
+   * For further information, please go to https://docs.corda.net/docs/corda-os/4.12/error-codes.html]
+   * ```
+   *
+   * @param sampleCordapp The sample cordapp that you wish to clean
+   */
+  public async cleanCordapp(sampleCordapp: SampleCordappEnum): Promise<void> {
+    await new Promise((resolve2) => setTimeout(resolve2, 2000));
+    const fnTag = `${this.className}.cleanCordapp()`;
+    Checks.truthy(sampleCordapp, `${fnTag}:sampleCordapp`);
+    const sshConfig = await this.getSshConfig();
+    const ssh = new NodeSSH();
+    try {
+      await ssh.connect(sshConfig);
+    } catch (ex) {
+      this.log.error(`Failed to establish SSH connection to Corda node.`, ex);
+      throw ex;
+    }
+
+    const cwd = "/";
+
+    try {
+      const deletePathPattern = `${SAMPLE_CORDAPP_DATA[sampleCordapp].rootDir}build/nodes/{PartyA,PartyB,PartyC,Notary}/cordapps/*`;
+      const cmd = `rm -rf ${deletePathPattern}`;
+
+      this.log.debug(`${fnTag}:CMD=%o, CWD=%o`, cmd, cwd);
+      const response = await ssh.execCommand(cmd, { cwd });
+      const { code, signal, stderr, stdout } = response;
+      this.log.debug(`${fnTag}:code=%o`, code);
+      this.log.debug(`${fnTag}:signal=%o`, signal);
+      this.log.debug(`${fnTag}:stderr=%o`, stderr);
+      this.log.debug(`${fnTag}:stdout=%o`, stdout);
     } finally {
       ssh.dispose();
     }
@@ -333,28 +390,36 @@ export class CordaTestLedger implements ITestLedger {
 
   public async getSupervisorDLocalhostUrl(): Promise<string> {
     const port = await this.getSupervisorDPublicPort();
-    return `http://localhost:${port}`;
+    return `http://127.0.0.1:${port}`;
   }
 
   public async getSSHPublicPort(): Promise<number> {
     const aContainerInfo = await this.getContainerInfo();
-    return Containers.getPublicPort(22, aContainerInfo);
+    return Containers.getPublicPort(this.sshPort, aContainerInfo);
   }
 
-  public async getCorDappsDirPartyA(): Promise<string> {
-    return "/samples-kotlin/Advanced/obligation-cordapp/build/nodes/ParticipantA/cordapps";
+  public async getCorDappsDirPartyA(
+    sampleCordapp: SampleCordappEnum = SampleCordappEnum.ADVANCED_OBLIGATION,
+  ): Promise<string> {
+    return SAMPLE_CORDAPP_DATA[sampleCordapp].cordappDirPartyA;
   }
 
-  public async getCorDappsDirPartyB(): Promise<string> {
-    return "/samples-kotlin/Advanced/obligation-cordapp/build/nodes/ParticipantB/cordapps";
+  public async getCorDappsDirPartyB(
+    sampleCordapp: SampleCordappEnum = SampleCordappEnum.ADVANCED_OBLIGATION,
+  ): Promise<string> {
+    return SAMPLE_CORDAPP_DATA[sampleCordapp].cordappDirPartyB;
   }
 
-  public async getCorDappsDirPartyC(): Promise<string> {
-    return "/samples-kotlin/Advanced/obligation-cordapp/build/nodes/ParticipantC/cordapps";
+  public async getCorDappsDirPartyC(
+    sampleCordapp: SampleCordappEnum = SampleCordappEnum.ADVANCED_OBLIGATION,
+  ): Promise<string> {
+    return SAMPLE_CORDAPP_DATA[sampleCordapp].cordappDirPartyC;
   }
 
-  public async getCorDappsDirPartyNotary(): Promise<string> {
-    return "/samples-kotlin/Advanced/obligation-cordapp/build/nodes/Notary/cordapps";
+  public async getCorDappsDirPartyNotary(
+    sampleCordapp: SampleCordappEnum = SampleCordappEnum.ADVANCED_OBLIGATION,
+  ): Promise<string> {
+    return SAMPLE_CORDAPP_DATA[sampleCordapp].cordappDirNotary;
   }
 
   public async getSshConfig(): Promise<SshConfig> {
@@ -366,6 +431,7 @@ export class CordaTestLedger implements ITestLedger {
       host: "127.0.0.1",
       port: publicPort,
       username: "root",
+      password: "root",
       privateKey,
     };
 
@@ -390,6 +456,7 @@ export class CordaTestLedger implements ITestLedger {
     const validationResult = JOI_SCHEMA.validate({
       imageVersion: this.imageVersion,
       imageName: this.imageName,
+      sshPort: this.sshPort,
       rpcPortNotary: this.rpcPortNotary,
       rpcPortA: this.rpcPortA,
       rpcPortB: this.rpcPortB,

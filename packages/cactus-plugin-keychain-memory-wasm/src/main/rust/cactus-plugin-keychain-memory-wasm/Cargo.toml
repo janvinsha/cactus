@@ -1,6 +1,6 @@
 [package]
 name = "cactus-plugin-keychain-memory-wasm"
-version = "1.0.0-rc.1"
+version = "2.1.0"
 authors = ["Peter Somogyvari <peter.somogyvari@accenture.com>"]
 edition = "2018"
 
@@ -22,13 +22,6 @@ wasm-bindgen-futures = "0.4.28"
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.6", optional = true }
-
-# `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
-# compared to the default allocator's ~10K. It is slower than the default
-# allocator, however.
-#
-# Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
-wee_alloc = { version = "0.4.5", optional = true }
 
 js-sys = "0.3.55"
 serde = { version = "1.0.130", features = ["derive"] }

@@ -85,14 +85,13 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
         get_keychain_entry_request: models::GetKeychainEntryRequest,
         context: &C) -> Result<GetKeychainEntryResponse, ApiError>
     {
-        let context = context.clone();
         info!("get_keychain_entry({:?}) - X-Span-ID: {:?}", get_keychain_entry_request, context.get().0.clone());
 
         // FIXME implement connection pooling
         // FIXME move configuration parsing logic to main instead
         let temp_host;
         let host: &str;
-        if (env::var("VAULT_HOST").is_err()) {
+        if env::var("VAULT_HOST").is_err() {
             host = "http://localhost:8200"
         } else {
             temp_host = env::var("VAULT_HOST").unwrap();
@@ -112,14 +111,13 @@ impl<C> Api<C> for Server<C> where C: Has<XSpanIdString> + Send + Sync
         set_keychain_entry_request: models::SetKeychainEntryRequest,
         context: &C) -> Result<SetKeychainEntryResponse, ApiError>
     {
-        let context = context.clone();
         info!("set_keychain_entry({:?}) - X-Span-ID: {:?}", set_keychain_entry_request, context.get().0.clone());
 
         // FIXME implement connection pooling
         // FIXME move configuration parsing logic to main instead
         let temp_host;
         let host: &str;
-        if (env::var("VAULT_HOST").is_err()) {
+        if env::var("VAULT_HOST").is_err() {
             host = "http://localhost:8200"
         } else {
             temp_host = env::var("VAULT_HOST").unwrap();

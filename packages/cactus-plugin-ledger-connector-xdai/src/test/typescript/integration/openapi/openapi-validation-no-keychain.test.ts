@@ -72,7 +72,7 @@ test(testCase, async (t: Test) => {
   expressApp.use(bodyParser.json({ limit: "250mb" }));
   const server = http.createServer(expressApp);
   const listenOptions: IListenOptions = {
-    hostname: "localhost",
+    hostname: "127.0.0.1",
     port: 0,
     server,
   };
@@ -139,7 +139,7 @@ test(testCase, async (t: Test) => {
         gas: 1000000,
       };
       await apiClient.deployContractJsonObjectV1(
-        (parameters as any) as DeployContractJsonObjectV1Request,
+        parameters as any as DeployContractJsonObjectV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -148,7 +148,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fDeploy} without required contractJSON: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: any) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("contractJSON"),
@@ -173,7 +173,7 @@ test(testCase, async (t: Test) => {
         fake: 4,
       };
       await apiClient.deployContractJsonObjectV1(
-        (parameters as any) as DeployContractJsonObjectV1Request,
+        parameters as any as DeployContractJsonObjectV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -182,7 +182,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fDeploy} with fake=4: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: any) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("fake"),
@@ -234,7 +234,7 @@ test(testCase, async (t: Test) => {
         },
       };
       await apiClient.invokeContractJsonObject(
-        (parameters as any) as InvokeContractJsonObjectV1Request,
+        parameters as any as InvokeContractJsonObjectV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -243,7 +243,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fInvoke} without required contractJSON: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: any) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("contractJSON"),
@@ -271,7 +271,7 @@ test(testCase, async (t: Test) => {
         fake: 4,
       };
       await apiClient.invokeContractJsonObject(
-        (parameters as any) as InvokeContractJsonObjectV1Request,
+        parameters as any as InvokeContractJsonObjectV1Request,
       );
     } catch (e) {
       t2.equal(
@@ -280,7 +280,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fInvoke} with fake=4: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: any) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("fake"),

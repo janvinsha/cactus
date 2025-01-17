@@ -6,6 +6,7 @@ import {
   LogLevelDesc,
   LoggerProvider,
   IAsyncProvider,
+  safeStringifyException,
 } from "@hyperledger/cactus-common";
 import {
   IEndpointAuthzOptions,
@@ -47,20 +48,20 @@ export class EnrollAdminV1Endpoint implements IWebServiceEndpoint {
 
   getAuthorizationOptionsProvider(): IAsyncProvider<IEndpointAuthzOptions> {
     return {
-      get: async () => this.oasPath.post["x-hyperledger-cactus"].authz,
+      get: async () => this.oasPath.post["x-hyperledger-cacti"].authz,
     };
   }
 
-  public get oasPath(): any {
+  public get oasPath(): (typeof OAS.paths)["/api/v1/utilityemissionchannel/registerEnroll/admin"] {
     return OAS.paths["/api/v1/utilityemissionchannel/registerEnroll/admin"];
   }
 
   public getVerbLowerCase(): string {
-    return this.oasPath.post["x-hyperledger-cactus"].http.verbLowerCase;
+    return this.oasPath.post["x-hyperledger-cacti"].http.verbLowerCase;
   }
 
   public getPath(): string {
-    return this.oasPath.post["x-hyperledger-cactus"].http.path;
+    return this.oasPath.post["x-hyperledger-cacti"].http.path;
   }
 
   public getExpressRequestHandler(): IExpressRequestHandler {
@@ -75,10 +76,11 @@ export class EnrollAdminV1Endpoint implements IWebServiceEndpoint {
       const resBody = await this.opts.plugin.enrollAdminV1(reqBody);
       res.status(200);
       res.json(resBody);
-    } catch (ex) {
+    } catch (ex: unknown) {
+      const exStr = safeStringifyException(ex);
       this.log.debug(`${tag} Failed to serve request:`, ex);
       res.status(500);
-      res.json({ error: ex.stack });
+      res.json({ error: exStr });
     }
   }
 }

@@ -21,6 +21,7 @@ import {
 } from "@hyperledger/cactus-cmd-api-server";
 
 import {
+  IJoseFittingJwtParams,
   LoggerProvider,
   LogLevelDesc,
   Servers,
@@ -56,7 +57,7 @@ test("BEFORE " + testCase, async (t: Test) => {
 test.skip(testCase, async (t: Test) => {
   const jwtKeyPair = await generateKeyPair("RS256", { modulusLength: 4096 });
   const jwtPublicKey = await exportSPKI(jwtKeyPair.publicKey);
-  const expressJwtOptions: expressJwt.Options = {
+  const expressJwtOptions: expressJwt.Params & IJoseFittingJwtParams = {
     algorithms: ["RS256"],
     secret: jwtPublicKey,
     audience: "carbon-accounting-tool-servers-hostname-here",
@@ -91,6 +92,7 @@ test.skip(testCase, async (t: Test) => {
   apiSrvOpts.apiPort = 0;
   apiSrvOpts.cockpitPort = 0;
   apiSrvOpts.grpcPort = 0;
+  apiSrvOpts.crpcPort = 0;
   apiSrvOpts.apiTlsEnabled = false;
   apiSrvOpts.plugins = [];
   const convictConfig = await configService.newExampleConfigConvict(apiSrvOpts);

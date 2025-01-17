@@ -2,15 +2,16 @@ package org.hyperledger.cactus.plugin.ledger.connector.corda.server.model
 
 import java.util.Objects
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.hyperledger.cactus.plugin.ledger.connector.corda.server.model.GetMonitorTransactionsV1ResponseTx
-import javax.validation.constraints.DecimalMax
-import javax.validation.constraints.DecimalMin
-import javax.validation.constraints.Max
-import javax.validation.constraints.Min
-import javax.validation.constraints.NotNull
-import javax.validation.constraints.Pattern
-import javax.validation.constraints.Size
-import javax.validation.Valid
+import org.hyperledger.cactus.plugin.ledger.connector.corda.server.model.GetMonitorTransactionsV1ResponseTxInner
+import jakarta.validation.constraints.DecimalMax
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
+import jakarta.validation.Valid
 
 /**
  * 
@@ -21,16 +22,15 @@ import javax.validation.Valid
  */
 data class GetMonitorTransactionsV1Response(
 
-    @field:JsonProperty("success", required = true) val success: kotlin.Boolean,
+    @get:JsonProperty("success", required = true) val success: kotlin.Boolean,
 
-    @field:JsonProperty("msg", required = true) val msg: kotlin.String,
+    @get:JsonProperty("msg", required = true) val msg: kotlin.String,
 
     @get:Size(min=1,max=1024)
-    @field:JsonProperty("stateFullClassName") val stateFullClassName: kotlin.String? = null,
+    @get:JsonProperty("stateFullClassName") val stateFullClassName: kotlin.String? = null,
 
     @field:Valid
-    @field:JsonProperty("tx") val tx: kotlin.collections.List<GetMonitorTransactionsV1ResponseTx>? = null
+    @get:JsonProperty("tx") val tx: kotlin.collections.List<GetMonitorTransactionsV1ResponseTxInner>? = arrayListOf()
 ) {
 
 }
-

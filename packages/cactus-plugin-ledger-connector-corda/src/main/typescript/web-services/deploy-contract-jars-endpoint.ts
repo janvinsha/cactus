@@ -1,5 +1,5 @@
-import { Express, Request, Response } from "express";
-import { Config as SshConfig } from "node-ssh";
+import type { Express, Request, Response } from "express";
+import type { Config as SshConfig } from "node-ssh";
 
 import {
   IWebServiceEndpoint,
@@ -20,7 +20,7 @@ import {
   LogLevelDesc,
 } from "@hyperledger/cactus-common";
 
-import { IEndpointAuthzOptions } from "@hyperledger/cactus-core-api";
+import type { IEndpointAuthzOptions } from "@hyperledger/cactus-core-api";
 
 import {
   DefaultApi,
@@ -78,7 +78,7 @@ export class DeployContractJarsEndpoint implements IWebServiceEndpoint {
     return this.authorizationOptionsProvider;
   }
 
-  public get oasPath(): typeof OAS.paths["/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-corda/deploy-contract-jars"] {
+  public get oasPath(): (typeof OAS.paths)["/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-corda/deploy-contract-jars"] {
     return OAS.paths[
       "/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-corda/deploy-contract-jars"
     ];
@@ -97,11 +97,11 @@ export class DeployContractJarsEndpoint implements IWebServiceEndpoint {
    * API server of Cactus.
    */
   public getPath(): string {
-    return this.oasPath.post["x-hyperledger-cactus"].http.path;
+    return this.oasPath.post["x-hyperledger-cacti"].http.path;
   }
 
   public getVerbLowerCase(): string {
-    return this.oasPath.post["x-hyperledger-cactus"].http.verbLowerCase;
+    return this.oasPath.post["x-hyperledger-cacti"].http.verbLowerCase;
   }
 
   public getOperationId(): string {

@@ -3,14 +3,15 @@ package org.hyperledger.cactus.plugin.ledger.connector.corda.server.model
 import java.util.Objects
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.hyperledger.cactus.plugin.ledger.connector.corda.server.model.CordappInfo
-import javax.validation.constraints.DecimalMax
-import javax.validation.constraints.DecimalMin
-import javax.validation.constraints.Max
-import javax.validation.constraints.Min
-import javax.validation.constraints.NotNull
-import javax.validation.constraints.Pattern
-import javax.validation.constraints.Size
-import javax.validation.Valid
+import jakarta.validation.constraints.DecimalMax
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
+import jakarta.validation.Valid
 
 /**
  * A NodeDiagnosticInfo holds information about the current node version.
@@ -24,16 +25,15 @@ data class NodeDiagnosticInfo(
 
     @field:Valid
     @get:Size(min=0,max=4096) 
-    @field:JsonProperty("cordapps", required = true) val cordapps: kotlin.collections.List<CordappInfo>,
+    @get:JsonProperty("cordapps", required = true) val cordapps: kotlin.collections.List<CordappInfo>,
 
-    @field:JsonProperty("platformVersion", required = true) val platformVersion: kotlin.Int,
+    @get:JsonProperty("platformVersion", required = true) val platformVersion: kotlin.Int,
 
-    @field:JsonProperty("revision", required = true) val revision: kotlin.String,
+    @get:JsonProperty("revision", required = true) val revision: kotlin.String,
 
-    @field:JsonProperty("vendor", required = true) val vendor: kotlin.String,
+    @get:JsonProperty("vendor", required = true) val vendor: kotlin.String,
 
-    @field:JsonProperty("version", required = true) val version: kotlin.String
+    @get:JsonProperty("version", required = true) val version: kotlin.String
 ) {
 
 }
-

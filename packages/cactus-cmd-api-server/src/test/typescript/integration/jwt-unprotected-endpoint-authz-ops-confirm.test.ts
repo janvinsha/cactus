@@ -14,6 +14,7 @@ import {
 } from "../../../main/typescript/public-api";
 
 import { PluginLedgerConnectorStub } from "../fixtures/plugin-ledger-connector-stub/plugin-ledger-connector-stub";
+import { UnprotectedActionEndpoint } from "../fixtures/plugin-ledger-connector-stub/web-services/unprotected-action-endpoint";
 
 const testCase =
   "block unprotected endpoint if not confirmed by ops via deploy-time configuration";
@@ -27,7 +28,7 @@ test(testCase, async () => {
   try {
     const jwtKeyPair = await generateKeyPair("RS256", { modulusLength: 4096 });
     const jwtPublicKey = await exportSPKI(jwtKeyPair.publicKey);
-    const expressJwtOptions: expressJwt.Options = {
+    const expressJwtOptions: expressJwt.Params & { [key: string]: unknown } = {
       algorithms: ["RS256"],
       secret: jwtPublicKey,
       audience: uuidv4(),
@@ -58,6 +59,7 @@ test(testCase, async () => {
     apiSrvOpts.apiPort = 0;
     apiSrvOpts.cockpitPort = 0;
     apiSrvOpts.grpcPort = 0;
+    apiSrvOpts.crpcPort = 0;
     apiSrvOpts.apiTlsEnabled = false;
     apiSrvOpts.plugins = [];
     const config = await configService.newExampleConfigConvict(apiSrvOpts);
@@ -67,10 +69,18 @@ test(testCase, async () => {
       pluginRegistry,
     });
 
+    const eps = await plugin.getOrCreateWebServices();
+    const epCsv = eps
+      .filter((ep) => ep instanceof UnprotectedActionEndpoint)
+      .map((ep) => ep.getPath())
+      .join(",");
+    const expectedMsg = `${ApiServer.E_NON_EXEMPT_UNPROTECTED_ENDPOINTS} ${epCsv}`;
+
     const startPromise = apiServer.start();
 
-    await expect(startPromise).rejects.toThrow(
-      ApiServer.E_NON_EXEMPT_UNPROTECTED_ENDPOINTS,
+    await expect(startPromise).rejects.toHaveProperty(
+      ["cause", "message"],
+      expectedMsg,
     );
   } catch (ex) {
     log.error(ex);

@@ -1,4 +1,4 @@
-import { Express } from "express";
+import type { Express } from "express";
 
 import OAS from "../json/openapi.json";
 
@@ -34,7 +34,8 @@ export interface IPluginKeychainVaultRemoteAdapterOptions
  * the author so desires.
  */
 export class PluginKeychainVaultRemoteAdapter
-  implements ICactusPlugin, IPluginWebService {
+  implements ICactusPlugin, IPluginWebService
+{
   public static readonly CLASS_NAME = "PluginKeychainVaultRemoteAdapter";
 
   private readonly instanceId: string;

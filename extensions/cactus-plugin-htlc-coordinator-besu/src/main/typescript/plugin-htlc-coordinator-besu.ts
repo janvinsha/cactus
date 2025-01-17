@@ -1,9 +1,11 @@
 import { Server } from "http";
 import { Server as SecureServer } from "https";
 import { v4 as uuidv4 } from "uuid";
-import { Express } from "express";
+import type { Express } from "express";
 import { promisify } from "util";
 import { Optional } from "typescript-optional";
+import { RuntimeError } from "run-time-error-cjs";
+import fastSafeStringify from "fast-safe-stringify";
 import OAS from "../json/openapi.json";
 import {
   ICactusPlugin,
@@ -51,7 +53,8 @@ export interface IPluginHTLCCoordinatorBesuOptions
 }
 
 export class PluginHTLCCoordinatorBesu
-  implements ICactusPlugin, IPluginWebService {
+  implements ICactusPlugin, IPluginWebService
+{
   private readonly instanceId: string;
   private readonly log: Logger;
   private readonly pluginRegistry: PluginRegistry;
@@ -157,14 +160,14 @@ export class PluginHTLCCoordinatorBesu
 
     switch (ownHTLCRequest.htlcPackage) {
       case HtlcPackage.BesuErc20: {
-        const pluginHtlc = (this.pluginRegistry.plugins.find((plugin) => {
+        const pluginHtlc = this.pluginRegistry.plugins.find((plugin) => {
           return (
             plugin.getPackageName() ==
             "@hyperledger/cactus-plugin-htlc-eth-besu-erc20" /*&&
             ((plugin as unknown) as PluginHtlcEthBesuErc20).getKeychainId() ==
               ownHTLCRequest.keychainId*/
           );
-        }) as unknown) as PluginHtlcEthBesuErc20;
+        }) as unknown as PluginHtlcEthBesuErc20;
         const request: InitializeRequestBesuERC20 = {
           connectorId: connector.getInstanceId(),
           keychainId: ownHTLCRequest.keychainId,
@@ -253,14 +256,14 @@ export class PluginHTLCCoordinatorBesu
 
     switch (counterpartyHTLCRequest.htlcPackage) {
       case HtlcPackage.BesuErc20: {
-        const pluginHtlc = (this.pluginRegistry.plugins.find((plugin) => {
+        const pluginHtlc = this.pluginRegistry.plugins.find((plugin) => {
           return (
             plugin.getPackageName() ==
             "@hyperledger/cactus-plugin-htlc-eth-besu-erc20" /*&&
             ((plugin as unknown) as PluginHtlcEthBesuErc20).getKeychainId() ==
               counterpartyHTLCRequest.keychainId*/
           );
-        }) as unknown) as PluginHtlcEthBesuErc20;
+        }) as unknown as PluginHtlcEthBesuErc20;
 
         const getSingleStatusReq = {
           id: counterpartyHTLCRequest.htlcId,
@@ -312,14 +315,14 @@ export class PluginHTLCCoordinatorBesu
 
     switch (withdrawCounterpartyRequest.htlcPackage) {
       case HtlcPackage.BesuErc20: {
-        const pluginHtlc = (this.pluginRegistry.plugins.find((plugin) => {
+        const pluginHtlc = this.pluginRegistry.plugins.find((plugin) => {
           return (
             plugin.getPackageName() ==
             "@hyperledger/cactus-plugin-htlc-eth-besu-erc20" /*&&
             ((plugin as unknown) as PluginHtlcEthBesuErc20).getKeychainId() ==
               withdrawCounterpartyRequest.keychainId*/
           );
-        }) as unknown) as PluginHtlcEthBesuErc20;
+        }) as unknown as PluginHtlcEthBesuErc20;
         const withdrawRequest: WithdrawRequestBesuERC20 = {
           id: withdrawCounterpartyRequest.htlcId,
           secret: withdrawCounterpartyRequest.secret,
@@ -328,8 +331,13 @@ export class PluginHTLCCoordinatorBesu
           connectorId: withdrawCounterpartyRequest.connectorInstanceId,
           keychainId: withdrawCounterpartyRequest.keychainId,
         };
-        const res = await pluginHtlc.withdraw(withdrawRequest);
-        return res;
+        try {
+          const res = await pluginHtlc.withdraw(withdrawRequest);
+          return res;
+        } catch (ex: unknown) {
+          const cause = ex instanceof Error ? ex : fastSafeStringify(ex);
+          throw new WithdrawCounterpartyTxReverted(`EVM tx reverted:`, cause);
+        }
       }
       case HtlcPackage.Besu: {
         const pluginOptions: IPluginHtlcEthBesuOptions = {
@@ -361,3 +369,5 @@ export class PluginHTLCCoordinatorBesu
     }
   }
 }
+
+export class WithdrawCounterpartyTxReverted extends RuntimeError {}

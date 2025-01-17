@@ -46,7 +46,7 @@ This plugin uses OpenAPI to generate the API paths. There are three endpoints de
 Firstly create an instance of the plugin.
 
 ```typescript
-import { create } from "ipfs-http-client";
+import { create } from "kubo-rpc-client";
 
 const logLevel: LogLevelDesc = "TRACE";
 const ipfsClientOrOptions = create();
@@ -99,7 +99,7 @@ const timestamp = response.data.checkedAt;
 ## Contributing
 We welcome contributions to Hyperledger Cactus in many forms, and there’s always plenty to do!
 
-Please review [CONTIRBUTING.md](https://github.com/hyperledger/cactus/blob/main/CONTRIBUTING.md "CONTIRBUTING.md") to get started.
+Please review [CONTRIBUTING.md](https://github.com/hyperledger/cactus/blob/main/CONTRIBUTING.md "CONTRIBUTING.md") to get started.
 
 ## License
 This distribution is published under the Apache License Version 2.0 found in the [LICENSE ](https://github.com/hyperledger/cactus/blob/main/LICENSE "LICENSE ")file.
