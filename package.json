@@ -228,97 +228,13 @@
     "wget-improved": "3.4.0",
     "yargs": "17.7.2"
   },
-  "dependenciesMeta": {
-    "@apollo/protobufjs": {
-      "built": false
-    },
-    "@nestjs/core": {
-      "built": false
-    },
-    "@openapitools/openapi-generator-cli": {
-      "built": false
-    },
-    "@trufflesuite/bigint-buffer": {
-      "built": false
-    },
-    "aws-sdk": {
-      "built": false
-    },
-    "bufferutil": {
-      "built": false
-    },
-    "cbor": {
-      "built": false
-    },
-    "classic-level": {
-      "built": false
-    },
-    "core-js": {
-      "built": false
-    },
-    "cpu-features": {
-      "built": false
-    },
-    "deasync": {
-      "built": false
-    },
-    "es5-ext": {
-      "built": false
-    },
-    "esbuild": {
-      "built": false
-    },
-    "indy-sdk": {
-      "built": false
-    },
-    "iso-constants": {
-      "built": false
-    },
-    "keccak": {
-      "built": false
-    },
-    "keytar": {
-      "built": false
-    },
-    "leveldown": {
-      "built": false
-    },
-    "nice-napi": {
-      "built": false
-    },
-    "nodemon": {
-      "built": false
-    },
-    "pkcs11js": {
-      "built": false
-    },
-    "protobufjs": {
-      "built": false
-    },
-    "secp256k1": {
-      "built": false
-    },
-    "sqlite3": {
-      "built": true
-    },
-    "ssh2": {
-      "built": false
-    },
-    "truffle": {
-      "built": false
-    },
-    "utf-8-validate": {
-      "built": false
-    },
-    "web3": {
-      "built": false
-    },
-    "web3-bzz": {
-      "built": false
-    },
-    "web3-shh": {
-      "built": false
-    }
-  },
-  "packageManager": "yarn@4.3.1"
+  "resolutions": {
+    "ansi-html": ">0.0.8",
+    "glob-parent": "5.1.2",
+    "lodash": ">=4.17.21",
+    "minimist": ">=1.2.6",
+    "node-forge": ">=1.3.0",
+    "underscore": "1.13.2",
+    "@types/ssh2": "0.5.52"
+  }
 }
