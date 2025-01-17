@@ -21,6 +21,7 @@ import {
   LogLevelDesc,
   LoggerProvider,
   Bools,
+  safeStringifyException,
 } from "@hyperledger/cactus-common";
 import Dockerode from "dockerode";
 import {
@@ -33,6 +34,7 @@ import path from "path";
 import fs from "fs";
 import yaml from "js-yaml";
 import { envMapToDocker } from "../common/env-map-to-docker";
+import { RuntimeError } from "run-time-error-cjs";
 
 export interface organizationDefinitionFabricV2 {
   path: string;
@@ -41,6 +43,12 @@ export interface organizationDefinitionFabricV2 {
   certificateAuthority: boolean;
   stateDatabase: STATE_DATABASE;
   port: string;
+}
+
+export interface EnrollFabricIdentityOptionsV1 {
+  readonly wallet: Wallet;
+  readonly enrollmentID: string;
+  readonly organization: string;
 }
 
 /*
@@ -56,6 +64,8 @@ export interface IFabricTestLedgerV1ConstructorOptions {
   stateDatabase?: STATE_DATABASE;
   orgList?: string[];
   extraOrgs?: organizationDefinitionFabricV2[];
+  // For test development, attach to ledger that is already running, don't spin up new one
+  useRunningLedger?: boolean;
 }
 
 export enum STATE_DATABASE {
@@ -67,6 +77,15 @@ export interface LedgerStartOptions {
   setContainer?: boolean;
   containerID?: string;
 }
+
+export const DEFAULT_FABRIC_2_AIO_IMAGE_NAME =
+  "ghcr.io/hyperledger/cactus-fabric2-all-in-one";
+export const DEFAULT_FABRIC_2_AIO_IMAGE_VERSION = "2023-08-17-issue2057-pr2135";
+export const DEFAULT_FABRIC_2_AIO_FABRIC_VERSION = "2.4.4";
+
+export const FABRIC_25_LTS_AIO_IMAGE_VERSION =
+  "2024-03-03--issue-2945-fabric-v2-5-6";
+export const FABRIC_25_LTS_AIO_FABRIC_VERSION = "2.5.6";
 
 /*
  * Provides default options for Fabric container
@@ -115,6 +134,7 @@ export class FabricTestLedgerV1 implements ITestLedger {
 
   private container: Container | undefined;
   private containerId: string | undefined;
+  private readonly useRunningLedger: boolean;
 
   public get className(): string {
     return FabricTestLedgerV1.CLASS_NAME;
@@ -144,6 +164,10 @@ export class FabricTestLedgerV1 implements ITestLedger {
         `This version of Fabric ${this.getFabricVersion()} is unsupported`,
       );
 
+    this.useRunningLedger = Bools.isBooleanStrict(options.useRunningLedger)
+      ? (options.useRunningLedger as boolean)
+      : false;
+
     this.testLedgerId = `cactusf2aio.${this.imageVersion}.${Date.now()}`;
 
     this.validateConstructorOptions();
@@ -166,33 +190,58 @@ export class FabricTestLedgerV1 implements ITestLedger {
     return `${this.envVars.get("FABRIC_VERSION")}`;
   }
 
+  public capitalizedMspIdOfOrg(organization: string): string {
+    return organization.charAt(0).toUpperCase() + organization.slice(1) + "MSP";
+  }
+
   public getDefaultMspId(): string {
     return "Org1MSP";
+  }
+
+  public async createCaClientV2(
+    organization: string,
+  ): Promise<FabricCAServices> {
+    const fnTag = `${this.className}#createCaClientV2()`;
+    this.log.debug(`${fnTag} ENTER`);
+    try {
+      const ccp = await this.getConnectionProfileOrgX(organization);
+      const caInfo =
+        ccp.certificateAuthorities["ca." + organization + ".example.com"];
+      const { tlsCACerts, url: caUrl, caName } = caInfo;
+      const { pem: caTLSCACertPem } = tlsCACerts;
+      const tlsOptions = { trustedRoots: caTLSCACertPem, verify: false };
+      this.log.debug(`createCaClientV2() caName=%o caUrl=%o`, caName, caUrl);
+      this.log.debug(`createCaClientV2() tlsOptions=%o`, tlsOptions);
+      return new FabricCAServices(caUrl, tlsOptions, caName);
+    } catch (ex) {
+      this.log.error(`createCaClientV2() Failure:`, ex);
+      throw new RuntimeError(`${fnTag} Inner Exception:`, ex);
+    }
   }
 
   public async createCaClient(): Promise<FabricCAServices> {
     const fnTag = `${this.className}#createCaClient()`;
     try {
-      const ccp = await this.getConnectionProfileOrg1();
-      const caInfo = ccp.certificateAuthorities["ca.org1.example.com"];
-      const { tlsCACerts, url: caUrl, caName } = caInfo;
-      const { pem: caTLSCACertPem } = tlsCACerts;
-      const tlsOptions = { trustedRoots: caTLSCACertPem, verify: false };
-      this.log.debug(`createCaClient() caName=%o caUrl=%o`, caName, caUrl);
-      this.log.debug(`createCaClient() tlsOptions=%o`, tlsOptions);
-      return new FabricCAServices(caUrl, tlsOptions, caName);
+      return this.createCaClientV2("org1");
     } catch (ex) {
       this.log.error(`createCaClient() Failure:`, ex);
-      throw new Error(`${fnTag} Inner Exception: ${ex}`);
+      throw new RuntimeError(`${fnTag} Inner Exception:`, ex);
     }
   }
 
-  public async enrollUser(wallet: Wallet): Promise<any> {
-    const fnTag = `${this.className}#enrollUser()`;
+  public async enrollUserV2(opts: EnrollFabricIdentityOptionsV1): Promise<any> {
+    const fnTag = `${this.className}#enrollUserV2()`;
+
+    Checks.truthy(opts, "enrollUserV2 opts");
+    Checks.nonBlankString(opts.organization, "enrollUserV2 opts.organization");
+    Checks.nonBlankString(opts.enrollmentID, "enrollUserV2 opts.enrollmentID");
+    Checks.truthy(opts.wallet, "enrollUserV2 opts.wallet");
+
+    const { enrollmentID, organization, wallet } = opts;
     try {
-      const mspId = this.getDefaultMspId();
-      const enrollmentID = "user";
-      const connectionProfile = await this.getConnectionProfileOrg1();
+      const mspId = this.capitalizedMspIdOfOrg(organization);
+      const connectionProfile =
+        await this.getConnectionProfileOrgX(organization);
       // Create a new gateway for connecting to our peer node.
       const gateway = new Gateway();
       const discovery = { enabled: true, asLocalhost: true };
@@ -205,17 +254,17 @@ export class FabricTestLedgerV1 implements ITestLedger {
 
       // Get the CA client object from the gateway for interacting with the CA.
       // const ca = gateway.getClient().getCertificateAuthority();
-      const ca = await this.createCaClient();
+      const ca = await this.createCaClientV2(opts.organization);
       const adminIdentity = gateway.getIdentity();
 
       // Register the user, enroll the user, and import the new identity into the wallet.
       const registrationRequest = {
-        affiliation: "org1.department1",
-        enrollmentID,
+        affiliation: opts.organization + ".department1",
+        enrollmentID: opts.enrollmentID,
         role: "client",
       };
 
-      const provider = wallet
+      const provider = opts.wallet
         .getProviderRegistry()
         .getProvider(adminIdentity.type);
       const adminUser = await provider.getUserContext(adminIdentity, "admin");
@@ -243,8 +292,21 @@ export class FabricTestLedgerV1 implements ITestLedger {
 
       return [x509Identity, wallet];
     } catch (ex) {
-      this.log.error(`enrollUser() Failure:`, ex);
-      throw new Error(`${fnTag} Exception: ${ex}`);
+      this.log.error(`${fnTag} failed with inner exception:`, ex);
+      throw new RuntimeError(`${fnTag} failed with inner exception:`, ex);
+    }
+  }
+
+  public async enrollUser(wallet: Wallet): Promise<any> {
+    const fnTag = `${this.className}#enrollUser()`;
+    try {
+      const enrollmentID = "user";
+      const opts = { enrollmentID, organization: "org1", wallet };
+      const out = await this.enrollUserV2(opts);
+      return out;
+    } catch (ex) {
+      this.log.error(`${fnTag} failed with inner exception:`, ex);
+      throw new RuntimeError(`${fnTag} failed with inner exception:`, ex);
     }
   }
 
@@ -255,10 +317,20 @@ export class FabricTestLedgerV1 implements ITestLedger {
     return ["admin", "adminpw"];
   }
 
-  public async enrollAdmin(): Promise<[X509Identity, Wallet]> {
-    const fnTag = `${this.className}#enrollAdmin()`;
+  public async enrollAdminV2(
+    opts: Partial<EnrollFabricIdentityOptionsV1>,
+  ): Promise<[X509Identity, Wallet]> {
+    const fnTag = `${this.className}#enrollAdminV2()`;
+    this.log.debug(`${fnTag} ENTER`);
+
+    const { organization } = opts;
+    if (!organization) {
+      throw new RuntimeError(`${fnTag} opts.organization cannot be falsy.`);
+    }
+    Checks.nonBlankString(organization, `${fnTag}:opts.organization`);
+
     try {
-      const ca = await this.createCaClient();
+      const ca = await this.createCaClientV2(organization);
       const wallet = await Wallets.newInMemoryWallet();
 
       // Enroll the admin user, and import the new identity into the wallet.
@@ -268,7 +340,7 @@ export class FabricTestLedgerV1 implements ITestLedger {
       };
       const enrollment = await ca.enroll(request);
 
-      const mspId = this.getDefaultMspId();
+      const mspId = this.capitalizedMspIdOfOrg(organization);
       const { certificate, key } = enrollment;
       const keyBytes = key.toBytes();
 
@@ -284,25 +356,28 @@ export class FabricTestLedgerV1 implements ITestLedger {
       await wallet.put("admin", x509Identity);
       return [x509Identity, wallet];
     } catch (ex) {
-      this.log.error(`enrollAdmin() Failure:`, ex);
-      throw new Error(`${fnTag} Exception: ${ex}`);
+      this.log.error(`${fnTag} Failure:`, ex);
+      throw new RuntimeError(`${fnTag} Exception:`, ex);
+    }
+  }
+
+  public async enrollAdmin(): Promise<[X509Identity, Wallet]> {
+    const fnTag = `${this.className}#enrollAdmin()`;
+    try {
+      const out = await this.enrollAdminV2({ organization: "org1" });
+      return out;
+    } catch (ex) {
+      this.log.error(`${fnTag} Failure:`, ex);
+      throw new RuntimeError(`${fnTag} Exception:`, ex);
     }
   }
 
   public async getConnectionProfileOrg1(): Promise<any> {
     const cInfo = await this.getContainerInfo();
     const container = this.getContainer();
-    const CCP_JSON_PATH_FABRIC_V1 =
-      "/fabric-samples/first-network/connection-org1.json";
     const CCP_JSON_PATH_FABRIC_V2 =
       "/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/connection-org1.json";
-    const ccpJsonPath = compareVersions.compare(
-      this.getFabricVersion(),
-      "2.0",
-      "<",
-    )
-      ? CCP_JSON_PATH_FABRIC_V1
-      : CCP_JSON_PATH_FABRIC_V2;
+    const ccpJsonPath = CCP_JSON_PATH_FABRIC_V2;
     const ccpJson = await Containers.pullFile(container, ccpJsonPath);
     const ccp = JSON.parse(ccpJson);
 
@@ -339,17 +414,11 @@ export class FabricTestLedgerV1 implements ITestLedger {
       const privatePort = 7050;
       const hostPort = await Containers.getPublicPort(privatePort, cInfo);
       const url = `grpcs://localhost:${hostPort}`;
-      const ORDERER_PEM_PATH_FABRIC_V1 =
-        "/fabric-samples/first-network/crypto-config/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem";
+
       const ORDERER_PEM_PATH_FABRIC_V2 =
         "/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem";
-      const ordererPemPath = compareVersions.compare(
-        this.getFabricVersion(),
-        "2.0",
-        "<",
-      )
-        ? ORDERER_PEM_PATH_FABRIC_V1
-        : ORDERER_PEM_PATH_FABRIC_V2;
+
+      const ordererPemPath = ORDERER_PEM_PATH_FABRIC_V2;
       const pem = await Containers.pullFile(container, ordererPemPath);
 
       ccp.orderers = {
@@ -393,37 +462,35 @@ export class FabricTestLedgerV1 implements ITestLedger {
     return ccp;
   }
 
-  public async getConnectionProfileOrgX(OrgName: string): Promise<any> {
+  public async getConnectionProfileOrgX(orgName: string): Promise<any> {
+    const fnTag = `${this.className}:getConnectionProfileOrgX()`;
+    this.log.debug(`${fnTag} ENTER - orgName=%s`, orgName);
+
     const connectionProfilePath =
-      OrgName === "org1" || OrgName === "org2"
+      orgName === "org1" || orgName === "org2"
         ? path.join(
             "fabric-samples/test-network",
             "organizations/peerOrganizations",
-            OrgName + ".example.com",
-            "connection-" + OrgName + ".json",
+            orgName + ".example.com",
+            "connection-" + orgName + ".json",
           )
         : path.join(
-            "add-org-" + OrgName,
+            "add-org-" + orgName,
             "organizations/peerOrganizations",
-            OrgName + ".example.com",
-            "connection-" + OrgName + ".json",
+            orgName + ".example.com",
+            "connection-" + orgName + ".json",
           );
-    const peer0Name = `peer0.${OrgName}.example.com`;
-    const peer1Name = `peer1.${OrgName}.example.com`;
+    const peer0Name = `peer0.${orgName}.example.com`;
+    const peer1Name = `peer1.${orgName}.example.com`;
     const cInfo = await this.getContainerInfo();
     const container = this.getContainer();
-    const CCP_JSON_PATH_FABRIC_V1 =
-      "/fabric-samples/first-network/connection-org" + OrgName + ".json";
     const CCP_JSON_PATH_FABRIC_V2 = connectionProfilePath;
-    const ccpJsonPath = compareVersions.compare(
-      this.getFabricVersion(),
-      "2.0",
-      "<",
-    )
-      ? CCP_JSON_PATH_FABRIC_V1
-      : CCP_JSON_PATH_FABRIC_V2;
+    const ccpJsonPath = CCP_JSON_PATH_FABRIC_V2;
     try {
+      const cId = container.id;
+      this.log.debug(`${fnTag} Pull Fabric CP %s :: %s`, cId, ccpJsonPath);
       const ccpJson = await Containers.pullFile(container, ccpJsonPath);
+      this.log.debug(`${fnTag} Got Fabric CP %s :: %s OK`, cId, ccpJsonPath);
       const ccp = JSON.parse(ccpJson);
 
       // Treat peer0
@@ -434,7 +501,7 @@ export class FabricTestLedgerV1 implements ITestLedger {
       ccp["peers"][peer0Name]["url"] = `grpcs://localhost:${hostPort}`;
 
       // if there is a peer1
-      if (ccp.peers["peer1.org" + OrgName + ".example.com"]) {
+      if (ccp.peers["peer1.org" + orgName + ".example.com"]) {
         const urlGrpcs = ccp["peers"][peer1Name]["url"];
         const privatePortPeer1 = parseFloat(urlGrpcs.replace(/^\D+/g, ""));
 
@@ -446,7 +513,7 @@ export class FabricTestLedgerV1 implements ITestLedger {
       }
       {
         // ca_peerOrg1
-        const caName = `ca.${OrgName}.example.com`;
+        const caName = `ca.${orgName}.example.com`;
         const urlGrpcs = ccp["certificateAuthorities"][caName]["url"];
         const caPort = parseFloat(urlGrpcs.replace(/^\D+/g, ""));
 
@@ -468,17 +535,9 @@ export class FabricTestLedgerV1 implements ITestLedger {
         const privatePort = 7050;
         const hostPort = await Containers.getPublicPort(privatePort, cInfo);
         const url = `grpcs://localhost:${hostPort}`;
-        const ORDERER_PEM_PATH_FABRIC_V1 =
-          "/fabric-samples/first-network/crypto-config/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem";
         const ORDERER_PEM_PATH_FABRIC_V2 =
           "/fabric-samples/test-network/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem";
-        const ordererPemPath = compareVersions.compare(
-          this.getFabricVersion(),
-          "2.0",
-          "<",
-        )
-          ? ORDERER_PEM_PATH_FABRIC_V1
-          : ORDERER_PEM_PATH_FABRIC_V2;
+        const ordererPemPath = ORDERER_PEM_PATH_FABRIC_V2;
         const pem = await Containers.pullFile(container, ordererPemPath);
         ccp.orderers = {
           "orderer.example.com": {
@@ -491,7 +550,7 @@ export class FabricTestLedgerV1 implements ITestLedger {
             },
           },
         };
-        const specificPeer = "peer0." + OrgName + ".example.com";
+        const specificPeer = "peer0." + orgName + ".example.com";
 
         ccp.channels = {
           mychannel: {
@@ -520,9 +579,10 @@ export class FabricTestLedgerV1 implements ITestLedger {
         // }
       }
       return ccp;
-    } catch (error) {
-      this.log.debug(`error on get connection profile`);
-      throw new Error(error as string);
+    } catch (ex: unknown) {
+      this.log.debug(`getConnectionProfileOrgX() crashed: `, ex);
+      const e = ex instanceof Error ? ex : safeStringifyException(ex);
+      throw new RuntimeError(`getConnectionProfileOrgX() crashed.`, e);
     }
   }
 
@@ -600,18 +660,16 @@ export class FabricTestLedgerV1 implements ITestLedger {
 
           dataCouch["networks"]["test"]["name"] = networkName;
 
-          dataCouch["services"][couchDbName][
-            "container_name"
-          ] = `couchdb${orgName}`;
+          dataCouch["services"][couchDbName]["container_name"] =
+            `couchdb${orgName}`;
           dataCouch["services"][couchDbName]["ports"] = [`${port}:5984`];
 
           // services: orgX.example.com:
           dataCouch["services"][peer0OrgName] =
             dataCouch["services"]["peer0.org3.example.com"];
 
-          dataCouch["services"][peer0OrgName][
-            "environment"
-          ][1] = `CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=${couchDbName}:5984`;
+          dataCouch["services"][peer0OrgName]["environment"][1] =
+            `CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=${couchDbName}:5984`;
 
           dataCouch["services"][peer0OrgName]["depends_on"] = [couchDbName];
 
@@ -665,58 +723,48 @@ export class FabricTestLedgerV1 implements ITestLedger {
           delete dataCompose["services"][peer0OrgName]["labels"];
 
           //l.18: container name
-          dataCompose["services"][peer0OrgName][
-            "container_name"
-          ] = peer0OrgName;
+          dataCompose["services"][peer0OrgName]["container_name"] =
+            peer0OrgName;
 
           //       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=cactusfabrictestnetwork_test
 
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][1] = `CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=${networkName}`;
+          dataCompose["services"][peer0OrgName]["environment"][1] =
+            `CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=${networkName}`;
 
           // CORE_PEER_ID=peer0.org3.example.com
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][8] = `CORE_PEER_ID=${peer0OrgName}`;
+          dataCompose["services"][peer0OrgName]["environment"][8] =
+            `CORE_PEER_ID=${peer0OrgName}`;
 
           // CORE_PEER_ADDRESS=peer0.org3.example.com:11051
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][9] = `CORE_PEER_ADDRESS=${peer0OrgName}:${port}`;
+          dataCompose["services"][peer0OrgName]["environment"][9] =
+            `CORE_PEER_ADDRESS=${peer0OrgName}:${port}`;
 
           // CORE_PEER_LISTENADDRESS=0.0.0.0:11051
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][10] = `CORE_PEER_LISTENADDRESS=0.0.0.0:${port}`;
+          dataCompose["services"][peer0OrgName]["environment"][10] =
+            `CORE_PEER_LISTENADDRESS=0.0.0.0:${port}`;
 
           //       - CORE_PEER_CHAINCODEADDRESS=peer0.org3.example.com:11052
           const chaincodePort = parseInt(port) + 1;
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][11] = `CORE_PEER_CHAINCODEADDRESS=${peer0OrgName}:${chaincodePort}`;
+          dataCompose["services"][peer0OrgName]["environment"][11] =
+            `CORE_PEER_CHAINCODEADDRESS=${peer0OrgName}:${chaincodePort}`;
 
           //    CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:11052
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][12] = `CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:${chaincodePort}`;
+          dataCompose["services"][peer0OrgName]["environment"][12] =
+            `CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:${chaincodePort}`;
 
           //          - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org3.example.com:11051
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][13] = `CORE_PEER_GOSSIP_BOOTSTRAP=${peer0OrgName}:${port}`;
+          dataCompose["services"][peer0OrgName]["environment"][13] =
+            `CORE_PEER_GOSSIP_BOOTSTRAP=${peer0OrgName}:${port}`;
 
           //          -       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org3.example.com:11051
 
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][14] = `CORE_PEER_GOSSIP_EXTERNALENDPOINT=${peer0OrgName}:${port}`;
+          dataCompose["services"][peer0OrgName]["environment"][14] =
+            `CORE_PEER_GOSSIP_EXTERNALENDPOINT=${peer0OrgName}:${port}`;
 
           //            - CORE_PEER_LOCALMSPID=Org3MSP
 
-          dataCompose["services"][peer0OrgName][
-            "environment"
-          ][15] = `CORE_PEER_LOCALMSPID=${mspId}`;
+          dataCompose["services"][peer0OrgName]["environment"][15] =
+            `CORE_PEER_LOCALMSPID=${mspId}`;
 
           /*
           dataCompose["services"][peer0OrgName][
@@ -727,19 +775,16 @@ export class FabricTestLedgerV1 implements ITestLedger {
 
           /// Volumes
           //         - ../../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/msp:/etc/hyperledger/fabric/msp
-          dataCompose["services"][peer0OrgName][
-            "volumes"
-          ][1] = `/add-org-${orgName}/organizations/peerOrganizations/${orgName}.example.com/peers/peer0.${orgName}.example.com/msp:/etc/hyperledger/fabric/msp`;
+          dataCompose["services"][peer0OrgName]["volumes"][1] =
+            `/add-org-${orgName}/organizations/peerOrganizations/${orgName}.example.com/peers/peer0.${orgName}.example.com/msp:/etc/hyperledger/fabric/msp`;
 
           //        - ../../organizations/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls:/etc/hyperledger/fabric/tls
-          dataCompose["services"][peer0OrgName][
-            "volumes"
-          ][2] = `/add-org-${orgName}/organizations/peerOrganizations/${orgName}.example.com/peers/peer0.${orgName}.example.com/tls:/etc/hyperledger/fabric/tls`;
+          dataCompose["services"][peer0OrgName]["volumes"][2] =
+            `/add-org-${orgName}/organizations/peerOrganizations/${orgName}.example.com/peers/peer0.${orgName}.example.com/tls:/etc/hyperledger/fabric/tls`;
 
           //         - peer0.org3.example.com:/var/hyperledger/production
-          dataCompose["services"][peer0OrgName][
-            "volumes"
-          ][3] = `${peer0OrgName}:/var/hyperledger/production`;
+          dataCompose["services"][peer0OrgName]["volumes"][3] =
+            `${peer0OrgName}:/var/hyperledger/production`;
 
           dataCompose["services"][peer0OrgName]["ports"] = [`${port}:${port}`];
 
@@ -785,14 +830,12 @@ export class FabricTestLedgerV1 implements ITestLedger {
           delete dataCa["services"]["ca_org3"];
 
           //      - FABRIC_CA_SERVER_CA_NAME=ca-org3
-          dataCa["services"][caName][
-            "environment"
-          ][1] = `FABRIC_CA_SERVER_CA_NAME=${caName}`;
+          dataCa["services"][caName]["environment"][1] =
+            `FABRIC_CA_SERVER_CA_NAME=${caName}`;
 
           //      - FABRIC_CA_SERVER_PORT=11054
-          dataCa["services"][caName][
-            "environment"
-          ][3] = `FABRIC_CA_SERVER_PORT=${port}`;
+          dataCa["services"][caName]["environment"][3] =
+            `FABRIC_CA_SERVER_PORT=${port}`;
 
           //      - "11054:11054"
           dataCa["services"][caName]["ports"] = [`${port}:${port}`];
@@ -875,19 +918,15 @@ export class FabricTestLedgerV1 implements ITestLedger {
           //dataConfigTxGen["Organizations"][orgName] = dataConfigTxGen["Organizations"];
           dataConfigTxGen["Organizations"][0]["Name"] = mspId;
           dataConfigTxGen["Organizations"][0]["ID"] = mspId;
-          dataConfigTxGen["Organizations"][0][
-            "MSPDir"
-          ] = `organizations/peerOrganizations/${orgName}.example.com/msp`;
-          dataConfigTxGen["Organizations"][0]["Policies"]["Readers"][
-            "Rule"
-          ] = `OR('${mspId}.admin','${mspId}.peer','${mspId}.client')`;
+          dataConfigTxGen["Organizations"][0]["MSPDir"] =
+            `organizations/peerOrganizations/${orgName}.example.com/msp`;
+          dataConfigTxGen["Organizations"][0]["Policies"]["Readers"]["Rule"] =
+            `OR('${mspId}.admin','${mspId}.peer','${mspId}.client')`;
 
-          dataConfigTxGen["Organizations"][0]["Policies"]["Writers"][
-            "Rule"
-          ] = `OR('${mspId}.admin','${mspId}.client')`;
-          dataConfigTxGen["Organizations"][0]["Policies"]["Admins"][
-            "Rule"
-          ] = `OR('${mspId}.admin')`;
+          dataConfigTxGen["Organizations"][0]["Policies"]["Writers"]["Rule"] =
+            `OR('${mspId}.admin','${mspId}.client')`;
+          dataConfigTxGen["Organizations"][0]["Policies"]["Admins"]["Rule"] =
+            `OR('${mspId}.admin')`;
           dataConfigTxGen["Organizations"][0]["Policies"]["Endorsement"][
             "Rule"
           ] = `OR('${mspId}.peer')`;
@@ -1215,6 +1254,25 @@ export class FabricTestLedgerV1 implements ITestLedger {
 
   public async start(ops?: LedgerStartOptions): Promise<Container> {
     const containerNameAndTag = this.getContainerImageName();
+
+    if (this.useRunningLedger) {
+      this.log.info(
+        "Search for already running Fabric Test Ledger because 'useRunningLedger' flag is enabled.",
+      );
+      this.log.info(
+        "Search criteria - image name: ",
+        containerNameAndTag,
+        ", state: running",
+      );
+      const containerInfo = await Containers.getByPredicate(
+        (ci) => ci.Image === containerNameAndTag && ci.State === "running",
+      );
+      const docker = new Docker();
+      this.containerId = containerInfo.Id;
+      this.container = docker.getContainer(this.containerId);
+      return this.container;
+    }
+
     const dockerEnvVars = envMapToDocker(this.envVars);
 
     if (this.container) {
@@ -1377,11 +1435,28 @@ export class FabricTestLedgerV1 implements ITestLedger {
   }
 
   public stop(): Promise<unknown> {
-    return Containers.stop(this.container as Container);
+    if (this.useRunningLedger) {
+      this.log.info("Ignore stop request because useRunningLedger is enabled.");
+      return Promise.resolve();
+    } else if (this.container) {
+      return Containers.stop(this.container);
+    } else {
+      return Promise.reject(
+        new Error(`Container was never created, nothing to stop.`),
+      );
+    }
   }
 
   public async destroy(): Promise<void> {
     const fnTag = "FabricTestLedgerV1#destroy()";
+
+    if (this.useRunningLedger) {
+      this.log.info(
+        "Ignore destroy request because useRunningLedger is enabled.",
+      );
+      return Promise.resolve();
+    }
+
     try {
       if (!this.container) {
         throw new Error(`${fnTag} Container not found, nothing to destroy.`);

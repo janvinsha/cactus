@@ -1,5 +1,0 @@
-# Cactus validator configuration
-# Check examples/discounted-cartrade/config for working example
-
-ledgerPluginInfo: []
-signTxInfo: {}

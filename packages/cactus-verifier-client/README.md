@@ -5,37 +5,34 @@
 This package provides `Verifier` and `VerifierFactory` components that can be used to communicate with compatible Cactus ledger connectors (validators) through single, unified interface.
 
 ### Supported ledger connectors
-| validatorType          | cactus ledger connector plugin                  |
-| ---------------------- | ----------------------------------------------- |
-| BESU_1X<br />BESU_2X   | cactus-plugin-ledger-connector-besu             |
-| QUORUM_2X              | cactus-test-plugin-ledger-connector-quorum      |
-| CORDA_4X               | cactus-plugin-ledger-connector-corda            |
-| legacy-socketio        | cactus-plugin-ledger-connector-fabric-socketio<br />cactus-plugin-ledger-connector-go-ethereum-socketio<br />cactus-plugin-ledger-connector-sawtooth-socketio |
+
+| validatorType        | cactus ledger connector plugin          |
+| -------------------- | --------------------------------------- |
+| BESU_1X<br />BESU_2X | cactus-plugin-ledger-connector-besu     |
+| ETH_1X               | cactus-plugin-ledger-connector-ethereum |
+| CORDA_4X             | cactus-plugin-ledger-connector-corda    |
+| IROHA_2X             | cactus-plugin-ledger-connector-iroha2   |
+| FABRIC_2X            | cactus-plugin-ledger-connector-fabric   |
+| SAWTOOTH_1X          | cactus-plugin-ledger-connector-sawtooth |
 
 ## VerifierFactory
+
 - Used to create single verifier per ledger based on pre-defined configuration.
 - See [verifier-factory.test.ts](../cactus-verifier-client/src/test/typescript/unit/verifier-factory.test.ts) for unit tests.
+- **In order to use `VerifierFactory` or `getValidatorApiClient` you must manually install the connector package that provides given ledger ApiClient!**
+  - Example: if your project uses ethereum and corda validators, you must install `cactus-plugin-ledger-connector-ethereum` and `cactus-plugin-ledger-connector-corda `. See table above for validator to package mapping.
 
 ### Usage
-``` typescript
+
+```typescript
 import {
   VerifierFactory,
   VerifierFactoryConfig,
 } from "@hyperledger/cactus-verifier-client";
 
 // Create VerifierFactory configuration that should describe all validators we want to connect to.
-// This can be read from a file or typed manually, the config is a superset of cactus-cmd-socketio-server ledger plugin config.
+// This can be read from a file or typed manually, the config is a superset of cactus-common-example-server ledger plugin config.
 const ledgerPluginInfo: VerifierFactoryConfig = [
-    {
-        validatorID: "some_legacy_connector",    // required
-        validatorType: "legacy-socketio",        // required - see table above for supported validator types
-        validatorURL: "https://localhost:9999",  // legacy-socketio specific config
-        validatorKeyPath: "./keysUr7d10R.crt",   // legacy-socketio specific config
-        ledgerInfo: {                            // optional
-            ledgerAbstract: "My legacy Ledger",
-        },
-        apiInfo: [],                             // optional
-    },
     {
         validatorID: "besu_openapi_connector", // required
         validatorType: "BESU_2X",              // required - see table above for supported validator types
@@ -48,7 +45,7 @@ const verifierFactory = new VerifierFactory(ledgerPluginInfo);
 
 // Get ApiClient to validator with ID "myBesuValidatorId"
 // Second argument will determine type of returned Verifier (BesuApiClient in this case)
-const myBesu: Verifier<BesuApiClient> = sut.getVerifier("myBesuValidatorId", "BESU_1X"))
+const myBesu: Verifier<BesuApiClient> = await sut.getVerifier("myBesuValidatorId", "BESU_1X"))
 
 // Second argument can be ignored for backward-compatibility
 // It will return Verifier<(union of all supported ApiClients)>
@@ -56,12 +53,14 @@ const client: Verifier<any> = sut.getVerifier(validatorId);
 ```
 
 ## Verifier
+
 - Common interface to all supported connector plugins.
 - See [verifier.test.ts](../cactus-verifier-client/src/test/typescript/unit/verifier.test.ts) for unit tests.
 - See [verifier-integration-with-openapi-connectors.test.ts](../cactus-test-api-client/src/test/typescript/integration/verifier-integration-with-openapi-connectors.test.ts) for integration test with Besu ledger connector.
 
 ### Construction
-``` typescript
+
+```typescript
 // Use VerifierFactory to get an instance of ledger connector Verifier
 const myBesu: Verifier<BesuApiClient> = sut.getVerifier("myBesuValidatorId", "BESU_1X"))
 
@@ -74,9 +73,10 @@ const myBesu: Verifier<BesuApiClient> = new Verifier("besu_openapi_connector", a
 ```
 
 ### Interface
-- Interface is defined in  [cactus-core-api package](../cactus-core-api/src/main/typescript/client/i-verifier.ts).
 
-``` typescript
+- Interface is defined in [cactus-core-api package](../cactus-core-api/src/main/typescript/client/i-verifier.ts).
+
+```typescript
 export interface IVerifier {
   // Immediately sends request to the validator, doesn't report any error or responses.
   sendAsyncRequest(

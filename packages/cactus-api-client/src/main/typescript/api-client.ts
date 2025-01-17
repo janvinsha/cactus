@@ -31,11 +31,11 @@ export class ApiClient extends BaseAPI {
    *
    * @param ctor
    */
-  public extendWith<T extends any>(
+  public extendWith<T>(
     ctor: new (configuration?: Configuration) => T,
   ): T & this {
-    const instance = new ctor(this.configuration) as any;
-    const self = this as any;
+    const instance = new ctor(this.configuration) as Record<string, unknown>;
+    const self = this as Record<string, unknown>;
 
     Objects.getAllMethodNames(instance).forEach(
       (method: string) => (self[method] = instance[method]),
@@ -83,6 +83,7 @@ export class ApiClient extends BaseAPI {
     ledgerOrId: string | Ledger,
     ctor: new (configuration?: Configuration) => T,
     ctorArgs: Record<string, unknown>,
+    consortiumDbProvider?: IAsyncProvider<ConsortiumDatabase>,
   ): Promise<ApiClient & T>;
   /**
    * Constructs a new `ApiClient` object that is tied to whichever Cactus node
@@ -101,7 +102,7 @@ export class ApiClient extends BaseAPI {
    * consortium metadata at runtime for the purposes of looking up ledgers by
    * the provided `ledgerId` parameter.
    */
-  public async ofLedger<T extends any>(
+  public async ofLedger<T>(
     ledgerOrId: string | Ledger,
     ctor: new (configuration?: Configuration) => T,
     ctorArgs: Record<string, unknown>,

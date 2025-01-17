@@ -17,8 +17,9 @@ import { Containers } from "../common/containers";
  * Provides default options for Corda connector server
  */
 const DEFAULTS = Object.freeze({
-  imageVersion: "2021-03-01-7e07b5b",
-  imageName: "petermetz/cactus-connector-corda-server",
+  imageVersion:
+    "2024-07-09-test-connector-corda-fix-flow-database-access-v4-8-37919dc84",
+  imageName: "ghcr.io/hyperledger/cactus-connector-corda-server",
   apiPort: 8080,
   envVars: [],
 });
@@ -120,7 +121,19 @@ export class CordaConnectorContainer {
             [`${this.apiPort}/tcp`]: {}, // REST API HTTP port
             [`9001/tcp`]: {}, // SupervisorD Web UI
           },
-          PublishAllPorts: true,
+          Healthcheck: {
+            Test: [
+              "CMD-SHELL",
+              `curl -vv -i -X POST http://127.0.0.1:8080/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-corda/network-map`,
+            ],
+            Interval: 5000000000, // 5 seconds
+            Timeout: 3000000000, // 3 seconds
+            Retries: 50,
+            StartPeriod: 1000000000, // 5 second
+          },
+          HostConfig: {
+            PublishAllPorts: true,
+          },
           Env: this.envVars,
         },
         {},
@@ -205,12 +218,12 @@ export class CordaConnectorContainer {
 
   public async getSupervisorDLocalhostUrl(): Promise<string> {
     const port = await this.getSupervisorDPublicPort();
-    return `http://localhost:${port}`;
+    return `http://127.0.0.1:${port}`;
   }
 
   public async getApiLocalhostUrl(): Promise<string> {
     const port = await this.getApiPublicPort();
-    return `http://localhost:${port}`;
+    return `http://127.0.0.1:${port}`;
   }
 
   public getContainer(): Container {

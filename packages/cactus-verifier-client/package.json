@@ -1,24 +1,7 @@
 {
   "name": "@hyperledger/cactus-verifier-client",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Verifier cactus client library to communicate with validators through socket.io",
-  "main": "dist/lib/main/typescript/index.js",
-  "module": "dist/lib/main/typescript/index.js",
-  "types": "dist/lib/main/typescript/index.d.ts",
-  "scripts": {
-    "build": "tsc"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "engines": {
-    "node": ">=10",
-    "npm": ">=6"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hyperledger/cactus.git"
-  },
   "keywords": [
     "Hyperledger",
     "Cactus",
@@ -26,10 +9,19 @@
     "Blockchain",
     "Distributed Ledger Technology"
   ],
+  "homepage": "https://github.com/hyperledger/cactus#readme",
+  "bugs": {
+    "url": "https://github.com/hyperledger/cactus/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyperledger/cactus.git"
+  },
+  "license": "Apache-2.0",
   "author": {
     "name": "Hyperledger Cactus Contributors",
     "email": "cactus@lists.hyperledger.org",
-    "url": "https://www.hyperledger.org/use/cactus"
+    "url": "https://www.hyperledger.org/use/cacti"
   },
   "contributors": [
     {
@@ -43,19 +35,61 @@
       "url": "https://www.fujitsu.com/global/"
     }
   ],
-  "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/hyperledger/cactus/issues"
+  "main": "dist/lib/main/typescript/index.js",
+  "module": "dist/lib/main/typescript/index.js",
+  "types": "dist/lib/main/typescript/index.d.ts",
+  "scripts": {
+    "build": "tsc"
   },
-  "homepage": "https://github.com/hyperledger/cactus#readme",
   "dependencies": {
-    "@hyperledger/cactus-api-client": "1.0.0",
-    "@hyperledger/cactus-common": "1.0.0",
-    "@hyperledger/cactus-core-api": "1.0.0",
-    "@hyperledger/cactus-plugin-ledger-connector-besu": "1.0.0",
-    "@hyperledger/cactus-plugin-ledger-connector-quorum": "1.0.0",
-    "@hyperledger/cactus-plugin-ledger-connector-corda": "1.0.0",
-    "jest-extended": "0.11.5",
-    "rxjs": "7.3.0"
+    "@hyperledger/cactus-common": "2.1.0",
+    "@hyperledger/cactus-core-api": "2.1.0"
+  },
+  "devDependencies": {
+    "@hyperledger/cactus-api-client": "2.1.0",
+    "@hyperledger/cactus-plugin-ledger-connector-besu": "2.1.0",
+    "@hyperledger/cactus-plugin-ledger-connector-corda": "2.1.0",
+    "@hyperledger/cactus-plugin-ledger-connector-ethereum": "2.1.0",
+    "@hyperledger/cactus-plugin-ledger-connector-fabric": "2.1.0",
+    "@hyperledger/cactus-plugin-ledger-connector-iroha2": "2.1.0",
+    "@hyperledger/cactus-plugin-ledger-connector-sawtooth": "2.1.0",
+    "jest-extended": "4.0.1",
+    "rxjs": "7.8.1"
+  },
+  "peerDependencies": {
+    "@hyperledger/cactus-api-client": "2.x",
+    "@hyperledger/cactus-plugin-ledger-connector-besu": "2.x",
+    "@hyperledger/cactus-plugin-ledger-connector-corda": "2.x",
+    "@hyperledger/cactus-plugin-ledger-connector-ethereum": "2.x",
+    "@hyperledger/cactus-plugin-ledger-connector-fabric": "2.x",
+    "@hyperledger/cactus-plugin-ledger-connector-iroha2": "2.x",
+    "@hyperledger/cactus-plugin-ledger-connector-sawtooth": "2.x"
+  },
+  "peerDependenciesMeta": {
+    "@hyperledger/cactus-plugin-ledger-connector-besu": {
+      "optional": true
+    },
+    "@hyperledger/cactus-plugin-ledger-connector-corda": {
+      "optional": true
+    },
+    "@hyperledger/cactus-plugin-ledger-connector-ethereum": {
+      "optional": true
+    },
+    "@hyperledger/cactus-plugin-ledger-connector-fabric": {
+      "optional": true
+    },
+    "@hyperledger/cactus-plugin-ledger-connector-iroha2": {
+      "optional": true
+    },
+    "@hyperledger/cactus-plugin-ledger-connector-sawtooth": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18",
+    "npm": ">=8"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

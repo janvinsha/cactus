@@ -1,5 +1,7 @@
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+
 import test, { Test } from "tape-promise/tape";
-import { v4 as uuidv4 } from "uuid";
 
 import { LogLevelDesc } from "@hyperledger/cactus-common";
 
@@ -9,25 +11,20 @@ import {
   PluginImportType,
 } from "@hyperledger/cactus-core-api";
 
-import {
-  ApiServer,
-  AuthorizationProtocol,
-  ConfigService,
-} from "../../../../main/typescript/public-api";
-
+import { ConfigService } from "../../../../main/typescript/config/config-service";
 import { K_CACTUS_API_SERVER_TOTAL_PLUGIN_IMPORTS } from "../../../../main/typescript/prometheus-exporter/metrics";
+import { DefaultApi as ApiServerApi } from "../../../../main/typescript/generated/openapi/typescript-axios/api";
+import { AuthorizationProtocol } from "../../../../main/typescript/config/authorization-protocol";
+import { ApiServer } from "../../../../main/typescript/api-server";
 
-import { DefaultApi as ApiServerApi } from "../../../../main/typescript/public-api";
-import path from "path";
-
-const logLevel: LogLevelDesc = "TRACE";
+const logLevel: LogLevelDesc = "INFO";
 
 test("can install plugin-ledger-connector-fabric", async (t: Test) => {
   const pluginsPath = path.join(
     __dirname, // start at the current file's path
     "../../../../../../../", // walk back up to the project root
     ".tmp/test/cmd-api-server/runtime-plugin-imports_test", // the dir path from the root
-    uuidv4(), // then a random directory to ensure proper isolation
+    randomUUID(), // then a random directory to ensure proper isolation
   );
   const pluginManagerOptionsJson = JSON.stringify({
     pluginsPath,
@@ -49,7 +46,7 @@ test("can install plugin-ledger-connector-fabric", async (t: Test) => {
       type: PluginImportType.Local,
       action: PluginImportAction.Install,
       options: {
-        instanceId: uuidv4(),
+        instanceId: randomUUID(),
         logLevel,
         connectionProfile: {},
         peerBinary: "peer",

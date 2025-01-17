@@ -3,14 +3,15 @@ package org.hyperledger.cactus.plugin.ledger.connector.corda.server.model
 import java.util.Objects
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.hyperledger.cactus.plugin.ledger.connector.corda.server.model.SHA256
-import javax.validation.constraints.DecimalMax
-import javax.validation.constraints.DecimalMin
-import javax.validation.constraints.Max
-import javax.validation.constraints.Min
-import javax.validation.constraints.NotNull
-import javax.validation.constraints.Pattern
-import javax.validation.constraints.Size
-import javax.validation.Valid
+import jakarta.validation.constraints.DecimalMax
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
+import jakarta.validation.Valid
 
 /**
  * A CordappInfo describes a single CorDapp currently installed on the node
@@ -27,24 +28,23 @@ import javax.validation.Valid
 data class CordappInfo(
 
     @field:Valid
-    @field:JsonProperty("jarHash", required = true) val jarHash: SHA256,
+    @get:JsonProperty("jarHash", required = true) val jarHash: SHA256,
 
-    @field:JsonProperty("licence", required = true) val licence: kotlin.String,
+    @get:JsonProperty("licence", required = true) val licence: kotlin.String,
 
-    @field:JsonProperty("minimumPlatformVersion", required = true) val minimumPlatformVersion: kotlin.Int,
+    @get:JsonProperty("minimumPlatformVersion", required = true) val minimumPlatformVersion: kotlin.Int,
 
-    @field:JsonProperty("name", required = true) val name: kotlin.String,
+    @get:JsonProperty("name", required = true) val name: kotlin.String,
 
-    @field:JsonProperty("shortName", required = true) val shortName: kotlin.String,
+    @get:JsonProperty("shortName", required = true) val shortName: kotlin.String,
 
-    @field:JsonProperty("targetPlatformVersion", required = true) val targetPlatformVersion: kotlin.Int,
+    @get:JsonProperty("targetPlatformVersion", required = true) val targetPlatformVersion: kotlin.Int,
 
-    @field:JsonProperty("type", required = true) val type: kotlin.String,
+    @get:JsonProperty("type", required = true) val type: kotlin.String,
 
-    @field:JsonProperty("vendor", required = true) val vendor: kotlin.String,
+    @get:JsonProperty("vendor", required = true) val vendor: kotlin.String,
 
-    @field:JsonProperty("version", required = true) val version: kotlin.String
+    @get:JsonProperty("version", required = true) val version: kotlin.String
 ) {
 
 }
-

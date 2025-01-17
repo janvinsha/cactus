@@ -6,6 +6,7 @@ import axios, { Method } from "axios";
 import { StatusCodes } from "http-status-codes";
 
 import { LoggerProvider, LogLevelDesc } from "@hyperledger/cactus-common";
+import { IJoseFittingJwtParams } from "@hyperledger/cactus-common";
 import { PluginRegistry } from "@hyperledger/cactus-core";
 
 import {
@@ -39,7 +40,7 @@ describe(testCase, () => {
         modulusLength: 4096,
       });
       const jwtPublicKey = await exportSPKI(jwtKeyPair.publicKey);
-      const expressJwtOptions: expressJwt.Options = {
+      const expressJwtOptions: expressJwt.Params & IJoseFittingJwtParams = {
         algorithms: ["RS256"],
         secret: jwtPublicKey,
         audience: uuidv4(),
@@ -75,6 +76,7 @@ describe(testCase, () => {
       apiSrvOpts.apiPort = 0;
       apiSrvOpts.cockpitPort = 0;
       apiSrvOpts.grpcPort = 0;
+      apiSrvOpts.crpcPort = 0;
       apiSrvOpts.apiTlsEnabled = false;
       apiSrvOpts.plugins = [];
       const config = await configService.newExampleConfigConvict(apiSrvOpts);

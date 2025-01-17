@@ -16,7 +16,10 @@ import {
 
 import OAS from "../../json/openapi.json";
 
-import { registerWebServiceEndpoint } from "@hyperledger/cactus-core";
+import {
+  handleRestEndpointException,
+  registerWebServiceEndpoint,
+} from "@hyperledger/cactus-core";
 
 import { PluginLedgerConnectorFabric } from "../plugin-ledger-connector-fabric";
 
@@ -26,13 +29,20 @@ export interface IGetPrometheusExporterMetricsEndpointV1Options {
 }
 
 export class GetPrometheusExporterMetricsEndpointV1
-  implements IWebServiceEndpoint {
+  implements IWebServiceEndpoint
+{
+  public static readonly CLASS_NAME = "GetPrometheusExporterMetricsEndpointV1";
+
   private readonly log: Logger;
+
+  public get className(): string {
+    return GetPrometheusExporterMetricsEndpointV1.CLASS_NAME;
+  }
 
   constructor(
     public readonly opts: IGetPrometheusExporterMetricsEndpointV1Options,
   ) {
-    const fnTag = "GetPrometheusExporterMetricsEndpointV1#constructor()";
+    const fnTag = `${this.className}#constructor()`;
 
     Checks.truthy(opts, `${fnTag} options`);
     Checks.truthy(opts.connector, `${fnTag} options.connector`);
@@ -57,17 +67,17 @@ export class GetPrometheusExporterMetricsEndpointV1
     return this.handleRequest.bind(this);
   }
 
-  public get oasPath(): typeof OAS.paths["/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/get-prometheus-exporter-metrics"] {
+  public get oasPath(): (typeof OAS.paths)["/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/get-prometheus-exporter-metrics"] {
     return OAS.paths[
       "/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/get-prometheus-exporter-metrics"
     ];
   }
   public getPath(): string {
-    return this.oasPath.get["x-hyperledger-cactus"].http.path;
+    return this.oasPath.get["x-hyperledger-cacti"].http.path;
   }
 
   public getVerbLowerCase(): string {
-    return this.oasPath.get["x-hyperledger-cactus"].http.verbLowerCase;
+    return this.oasPath.get["x-hyperledger-cacti"].http.verbLowerCase;
   }
 
   public getOperationId(): string {
@@ -82,19 +92,23 @@ export class GetPrometheusExporterMetricsEndpointV1
   }
 
   async handleRequest(req: Request, res: Response): Promise<void> {
-    const fnTag = "GetPrometheusExporterMetrics#handleRequest()";
+    const fnTag = `${this.className}#handleRequest()`;
     const verbUpper = this.getVerbLowerCase().toUpperCase();
-    this.log.debug(`${verbUpper} ${this.getPath()}`);
+    const reqTag = `${verbUpper} ${this.getPath()}`;
+    this.log.debug(reqTag);
 
     try {
       const resBody = await this.opts.connector.getPrometheusExporterMetrics();
       res.status(200);
       res.send(resBody);
     } catch (ex) {
-      this.log.error(`${fnTag} failed to serve request`, ex);
-      res.status(500);
-      res.statusMessage = ex.message;
-      res.json({ error: ex.stack });
+      const errorMsg = `${fnTag} request handler fn crashed for: ${reqTag}`;
+      await handleRestEndpointException({
+        errorMsg,
+        log: this.log,
+        error: ex,
+        res,
+      });
     }
   }
 }

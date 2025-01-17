@@ -13,9 +13,9 @@ import { Configuration } from "@hyperledger/cactus-core-api";
 import {
   BESU_DEMO_LEDGER_ID,
   CACTUS_API_URL,
-  QUORUM_DEMO_LEDGER_ID,
+  XDAI_BESU_DEMO_LEDGER_ID,
   FABRIC_DEMO_LEDGER_ID,
-} from "src/constants";
+} from "../constants";
 import { ApiClient } from "@hyperledger/cactus-api-client";
 import { AuthConfig } from "./common/auth-config";
 
@@ -41,7 +41,6 @@ const apiClient = new ApiClient(configuration);
 
 @NgModule({
   declarations: [AppComponent],
-  entryComponents: [],
   imports: [BrowserModule, IonicModule.forRoot(), AppRoutingModule],
   providers: [
     StatusBar,
@@ -52,9 +51,9 @@ const apiClient = new ApiClient(configuration);
       useValue: cactusApiUrl,
     },
     {
-      provide: QUORUM_DEMO_LEDGER_ID,
+      provide: XDAI_BESU_DEMO_LEDGER_ID,
       // This has to match the ledger ID defined in supply-chain-app.ts
-      useValue: "QuorumDemoLedger",
+      useValue: "XdaiBesuDemoLedger",
     },
     {
       provide: BESU_DEMO_LEDGER_ID,

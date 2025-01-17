@@ -10,11 +10,17 @@
     - [1.4.1. Identity Providers](#141-identity-providers)
     - [1.4.2. Setting up a WS-X.509 provider](#142-setting-up-a-ws-x509-provider)
     - [1.4.3. Building the ws-identity docker image](#143-building-the-ws-identity-docker-image)
+  - [1.5 Monitoring new blocks (WatchBlocks)](#15-monitoring-new-blocks-watchblocks)
+    - [1.5.1 Example](#151-example)
+    - [1.5.2 Listener Type](#152-listener-type)
+      - [Original](#original)
+      - [Cacti (custom)](#cacti-custom)
+  - [1.6 Delegated Signature](#16-delegated-signature)
+    - [1.6.1 Example](#161-example)
 - [2. Architecture](#2-architecture)
   - [2.1. run-transaction-endpoint](#21-run-transaction-endpoint)
 - [3. Containerization](#3-containerization)
-  - [3.1. Building/running the container image locally](#31-buildingrunning-the-container-image-locally)
-  - [3.2. Running the container](#32-running-the-container)
+  - [3.1. Running the container](#31-running-the-container)
   - [3.3. Testing API calls with the container](#33-testing-api-calls-with-the-container)
 - [4. Prometheus Exporter](#4-prometheus-exporter)
   - [4.1. Usage Prometheus](#41-usage-prometheus)
@@ -27,9 +33,10 @@
 - [6. License](#6-license)
 - [7. Acknowledgments](#7-acknowledgments)
 
+
 ## 1. Usage
 
-This plugin provides a way to interact with Fabric networks. 
+This plugin provides a way to interact with Fabric networks.
 Using this one can perform:
 * Deploy smart contracts (chaincode).
 * Execute transactions on the ledger.
@@ -81,7 +88,7 @@ try {
 
 ### 1.3. Using Via The API Client
 
-**Prerequisites** 
+**Prerequisites**
 - A running Fabric ledger (network)
 - You have a running Cactus API server on `$HOST:$PORT` with the Fabric connector plugin installed on it (and the latter configured to have access to the Fabric ledger from point 1)
 
@@ -250,7 +257,7 @@ await connector.rotateKey(
 Identity providers allows client to manage their private more effectively and securely. Cactus Fabric Connector support multiple type of providers. Each provider differ based upon where the private are stored. On High level certificate credential are stored as
 
 ```typescript
-{  
+{
   type: FabricSigningCredentialType;
   credentials: {
     certificate: string;
@@ -277,6 +284,100 @@ The following packages are used to access private keys (via web-socket)  stored 
 
 TBD
 
+### 1.5 Monitoring new blocks (WatchBlocks)
+- Use `ApiClient` to receive new blocks from a fabric ledger.
+- Type of the response can be configured.
+- Credentials must be configured using `gatewayOptions` argument (you can either send them directly in request or use wallet stored in keychain).
+
+#### 1.5.1 Example
+For more detailed example check [fabric-watch-blocks-v1-endpoint.test.ts](./src/test/typescript/integration/fabric-v2-2-x/fabric-watch-blocks-v1-endpoint.test.ts)
+
+``` typescript
+// Setup
+const signingCredential = {
+  keychainId: uuidv4(),
+  keychainRef: "user2",
+};
+
+// Create RxJS Observable.
+// This will connect to the fabric connector and start the monitoring operation.
+const watchObservable = apiClient.watchBlocksV1({
+  channelName: "mychannel", // fabric channel name
+  gatewayOptions: { // use signing credential from keychain
+    identity: signingCredential.keychainRef,
+    wallet: {
+      keychain: signingCredential,
+    },
+  },
+  WatchBlocksListenerTypeV1.Full, // return full block data
+});
+
+// Subscribe to the observable to receive new blocks
+const subscription = watchObservable.subscribe({
+  next(event) {
+    // Handle new event
+  },
+  error(err) {
+    // Handle error from connector
+  },
+});
+```
+
+#### 1.5.2 Listener Type
+There are two types of listener type - original and cactus ones.
+
+##### Original
+Corresponds directly to `BlockType` from `fabric-common`:
+  - `WatchBlocksListenerTypeV1.Filtered`,
+  - `WatchBlocksListenerTypeV1.Full`,
+  - `WatchBlocksListenerTypeV1.Private`,
+
+##### Cacti (custom)
+Parses the data and returns custom formatted block.
+- `WatchBlocksListenerTypeV1.CactiTransactions`: Returns transactions summary. Compatible with legacy `fabric-socketio` monitoring operation.
+- `WatchBlocksListenerTypeV1.CactiFullBlock`: Returns full block summary.
+
+### 1.6 Delegated Signature
+- Custom signature callback can be used when increased security is needed or currently available options are not sufficient.
+- Signature callback is used whenever fabric request must be signed.
+- To use delegate signature instead of identity supplied directly / through keychain use `transactDelegatedSign` (for transact) or `watchBlocksDelegatedSignV1` for block monitoring.
+- `uniqueTransactionData` can be passed to each delegate sign method on connector. This data is passed to signCallback to identify and verify the request. It can be used to pass signing tokens or any other data needed for performing the signing (e.g. user, scopes, etc...).
+- `signProposal` method from this package can be used to sign the requests in offline location.
+- For more complex examples see tests: `delegate-signing-methods.test` and `fabric-watch-blocks-delegated-sign-v1-endpoint.test`.
+
+#### 1.6.1 Example
+```typescript
+// Setup - supply callback when instantiating the connector plugin
+fabricConnectorPlugin = new PluginLedgerConnectorFabric({
+  instanceId: uuidv4(),
+  // ...
+  signCallback: async (payload, txData) => {
+    log.debug("signCallback called with txData (token):", txData);
+    return signProposal(adminIdentity.credentials.privateKey, payload);
+  },
+});
+
+// Run transactions
+await apiClient.runDelegatedSignTransactionV1({
+  signerCertificate: adminIdentity.credentials.certificate,
+  signerMspID: adminIdentity.mspId,
+  channelName: ledgerChannelName,
+  contractName: assetTradeContractName,
+  invocationType: FabricContractInvocationType.Call,
+  methodName: "ReadAsset",
+  params: ["asset1"],
+  uniqueTransactionData: myJwtToken,
+});
+
+// Monitor for transactions:
+apiClient.watchBlocksDelegatedSignV1({
+  type: WatchBlocksListenerTypeV1.CactiTransactions,
+  signerCertificate: adminIdentity.credentials.certificate,
+  signerMspID: adminIdentity.mspId,
+  channelName: ledgerChannelName,
+})
+```
+
 ## 2. Architecture
 The sequence diagrams for various endpoints are mentioned below
 
@@ -292,25 +393,13 @@ The above diagram shows the sequence diagram of transact() method of the PluginL
 
 ![run-transaction-endpoint-enroll](docs/architecture/images/run-transaction-endpoint-enroll.png)
 
-The above diagram shows the sequence diagram of enroll() method of the PluginLedgerConnectorFabric class. The caller to this function, which in reference to the above sequence diagram is API server, sends Signer object along with EnrollmentRequest as an argument to the enroll() method. Based on the singerType (FabricSigningCredentialType.X509, FabricSigningCredentialType.VaultX509, FabricSigningCredentialType.WsX509), corresponding identity is enrolled and stored inside keychain. 
+The above diagram shows the sequence diagram of enroll() method of the PluginLedgerConnectorFabric class. The caller to this function, which in reference to the above sequence diagram is API server, sends Signer object along with EnrollmentRequest as an argument to the enroll() method. Based on the singerType (FabricSigningCredentialType.X509, FabricSigningCredentialType.VaultX509, FabricSigningCredentialType.WsX509), corresponding identity is enrolled and stored inside keychain.
 
 
 
 ## 3. Containerization
-### 3.1. Building/running the container image locally
 
-In the Cactus project root say:
-
-```sh
-DOCKER_BUILDKIT=1 docker build -f ./packages/cactus-plugin-ledger-connector-fabric/Dockerfile . -t cplcb
-```
-
-Build with a specific version of the npm package:
-```sh
-DOCKER_BUILDKIT=1 docker build --build-arg NPM_PKG_VERSION=0.4.1 -f ./packages/cactus-plugin-ledger-connector-fabric/Dockerfile . -t cplcb
-```
-
-### 3.2. Running the container
+### 3.1. Running the container
 
 Launch container with plugin configuration as an **environment variable**:
 ```sh
@@ -318,22 +407,46 @@ docker run \
   --rm \
   --publish 3000:3000 \
   --publish 4000:4000 \
-  --env PLUGINS='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": {"instanceId": "some-unique-fabric-connector-instance-id", "dockerBinary": "usr/local/bin/docker","cliContainerEnv": {
-    "CORE_PEER_LOCALMSPID": "Org1MSP",
-    "CORE_PEER_ADDRESS": "peer0.org1.example.com:7051",
-    "CORE_PEER_MSPCONFIGPATH":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp",
-    "CORE_PEER_TLS_ROOTCERT_FILE":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt",
-    "ORDERER_TLS_ROOTCERT_FILE":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
-  },
-  "discoveryOptions": {
-    "enabled": true,
-    "asLocalhost": true
+  --env AUTHORIZATION_PROTOCOL='NONE' \
+  --env AUTHORIZATION_CONFIG_JSON='{}' \
+  --env GRPC_TLS_ENABLED=false \
+  --env API_TLS_CERT_PEM=- \
+  --env API_TLS_CLIENT_CA_PEM=- \
+  --env API_TLS_KEY_PEM=- \
+  --env API_TLS_ENABLED=false \
+  --env API_MTLS_ENABLED=false \
+  --env API_HOST=0.0.0.0 \
+  --env LOG_LEVEL=INFO \
+  --env PLUGINS='[
+  {
+    "packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric",
+    "type": "org.hyperledger.cactus.plugin_import_type.LOCAL",
+    "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",
+    "options": {
+      "instanceId": "some-unique-fabric-connector-instance-id",
+      "dockerBinary": "usr/local/bin/docker",
+      "peerBinary": "/fabric-samples/bin/peer",
+      "connectionProfile": {
+        "name": "TODO-FILL-OUT-YOUR-CONNECTION-PROFILE-DETAILS",
+        "version": "TODO-FILL-OUT-YOUR-CONNECTION-PROFILE-DETAILS",
+        "organizations": {},
+        "peers": {}
+      },
+      "cliContainerEnv": {
+        "CORE_PEER_LOCALMSPID": "Org1MSP",
+        "CORE_PEER_ADDRESS": "peer0.org1.example.com:7051",
+        "CORE_PEER_MSPCONFIGPATH": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp",
+        "CORE_PEER_TLS_ROOTCERT_FILE": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt",
+        "ORDERER_TLS_ROOTCERT_FILE": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+      },
+      "discoveryOptions": {
+        "enabled": true,
+        "asLocalhost": true
+      }
+    }
   }
-  }}}]' \
-  cplcb
+]' \
+  ghcr.io/hyperledger/cactus-cmd-api-server:2024-07-03t18-38-45-dev-65adc3255
 ```
 
 Launch container with plugin configuration as a **CLI argument**:
@@ -341,53 +454,103 @@ Launch container with plugin configuration as a **CLI argument**:
 docker run \
   --rm \
   --publish 3000:3000 \
-   --publish 4000:4000 \
-  cplcb \
-    ./node_modules/.bin/cactusapi \
-    --plugins='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": {"instanceId": "some-unique-fabric-connector-instance-id", "dockerBinary": "usr/local/bin/docker","cliContainerEnv": {
-    "CORE_PEER_LOCALMSPID": "Org1MSP",
-    "CORE_PEER_ADDRESS": "peer0.org1.example.com:7051",
-    "CORE_PEER_MSPCONFIGPATH":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp",
-    "CORE_PEER_TLS_ROOTCERT_FILE":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt",
-    "ORDERER_TLS_ROOTCERT_FILE":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
-  },
-  "discoveryOptions": {
-    "enabled": true,
-    "asLocalhost": true
-  }
-  }}}]'
+  --publish 4000:4000 \
+  --env AUTHORIZATION_PROTOCOL='NONE' \
+  --env AUTHORIZATION_CONFIG_JSON='{}' \
+  --env GRPC_TLS_ENABLED=false \
+  --env API_TLS_CERT_PEM=- \
+  --env API_TLS_CLIENT_CA_PEM=- \
+  --env API_TLS_KEY_PEM=- \
+  --env API_TLS_ENABLED=false \
+  --env API_MTLS_ENABLED=false \
+  --env API_HOST=0.0.0.0 \
+  --env LOG_LEVEL=INFO \
+  ghcr.io/hyperledger/cactus-cmd-api-server:2024-07-03t18-38-45-dev-65adc3255 \
+    node index.js \
+    --plugins='[
+      {
+        "packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric",
+        "type": "org.hyperledger.cactus.plugin_import_type.LOCAL",
+        "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",
+        "options": {
+          "instanceId": "some-unique-fabric-connector-instance-id",
+          "dockerBinary": "usr/local/bin/docker",
+          "peerBinary": "/fabric-samples/bin/peer",
+          "connectionProfile": {
+            "name": "TODO-FILL-OUT-YOUR-CONNECTION-PROFILE-DETAILS",
+            "version": "TODO-FILL-OUT-YOUR-CONNECTION-PROFILE-DETAILS",
+            "organizations": {},
+            "peers": {}
+          },
+          "cliContainerEnv": {
+            "CORE_PEER_LOCALMSPID": "Org1MSP",
+            "CORE_PEER_ADDRESS": "peer0.org1.example.com:7051",
+            "CORE_PEER_MSPCONFIGPATH": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp",
+            "CORE_PEER_TLS_ROOTCERT_FILE": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt",
+            "ORDERER_TLS_ROOTCERT_FILE": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+          },
+          "discoveryOptions": {
+            "enabled": true,
+            "asLocalhost": true
+          }
+        }
+      }
+    ]'
 ```
 
 Launch container with **configuration file** mounted from host machine:
 ```sh
+echo '{"plugins": [
+  {
+    "packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric",
+    "type": "org.hyperledger.cactus.plugin_import_type.LOCAL",
+    "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",
+    "options": {
+      "instanceId": "some-unique-fabric-connector-instance-id",
+      "dockerBinary": "usr/local/bin/docker",
+      "peerBinary": "/fabric-samples/bin/peer",
+      "connectionProfile": {
+        "name": "TODO-FILL-OUT-YOUR-CONNECTION-PROFILE-DETAILS",
+        "version": "TODO-FILL-OUT-YOUR-CONNECTION-PROFILE-DETAILS",
+        "organizations": {},
+        "peers": {}
+      },
+      "cliContainerEnv": {
+        "CORE_PEER_LOCALMSPID": "Org1MSP",
+        "CORE_PEER_ADDRESS": "peer0.org1.example.com:7051",
+        "CORE_PEER_MSPCONFIGPATH": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp",
+        "CORE_PEER_TLS_ROOTCERT_FILE": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt",
+        "ORDERER_TLS_ROOTCERT_FILE": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+      },
+      "discoveryOptions": {
+        "enabled": true,
+        "asLocalhost": true
+      }
+    }
+  }]
+}' > .cacti-config.json
 
-echo '[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": {"instanceId": "some-unique-fabric-connector-instance-id", "dockerBinary": "usr/local/bin/docker","cliContainerEnv": {
-    "CORE_PEER_LOCALMSPID": "Org1MSP",
-    "CORE_PEER_ADDRESS": "peer0.org1.example.com:7051",
-    "CORE_PEER_MSPCONFIGPATH":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp",
-    "CORE_PEER_TLS_ROOTCERT_FILE":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt",
-    "ORDERER_TLS_ROOTCERT_FILE":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
-  },
-  "discoveryOptions": {
-    "enabled": true,
-    "asLocalhost": true
-  }
-  }}}]' > cactus.json
+```
 
+```sh
 docker run \
   --rm \
   --publish 3000:3000 \
   --publish 4000:4000 \
-  --mount type=bind,source="$(pwd)"/cactus.json,target=/cactus.json \
-  cplcb \
-    ./node_modules/.bin/cactusapi \
-    --config-file=/cactus.json
+  --env AUTHORIZATION_PROTOCOL='NONE' \
+  --env AUTHORIZATION_CONFIG_JSON='{}' \
+  --env GRPC_TLS_ENABLED=false \
+  --env API_TLS_CERT_PEM=- \
+  --env API_TLS_CLIENT_CA_PEM=- \
+  --env API_TLS_KEY_PEM=- \
+  --env API_TLS_ENABLED=false \
+  --env API_MTLS_ENABLED=false \
+  --env API_HOST=0.0.0.0 \
+  --env LOG_LEVEL=INFO \
+  --mount type=bind,source="$(pwd)"/.cacti-config.json,target=/.cacti-config.json \
+  ghcr.io/hyperledger/cactus-cmd-api-server:2024-07-03t18-38-45-dev-65adc3255 \
+  node index.js \
+    --config-file=/.cacti-config.json
 ```
 
 ### 3.3. Testing API calls with the container
@@ -396,68 +559,91 @@ Don't have a fabric network on hand to test with? Test or develop against our fa
 
 **Terminal Window 1 (Ledger)**
 ```sh
-docker run --privileged -p 0.0.0.0:8545:8545/tcp  -p 0.0.0.0:8546:8546/tcp  -p 0.0.0.0:8888:8888/tcp  -p 0.0.0.0:9001:9001/tcp  -p 0.0.0.0:9545:9545/tcp ghcr.io/hyperledger/cactus-fabric-all-in-one:v1.0.0-rc.2
+docker run \
+  --privileged \
+  --publish 0.0.0.0:8545:8545/tcp \
+  --publish 0.0.0.0:8546:8546/tcp \
+  --publish 0.0.0.0:8888:8888/tcp \
+  --publish 0.0.0.0:9001:9001/tcp \
+  --publish 0.0.0.0:9545:9545/tcp \
+  ghcr.io/hyperledger/cactus-fabric2-all-in-one:2024-03-03--issue-2945-fabric-v2-5-6
 ```
 
-**Terminal Window 2 (Cactus API Server)**
+**Terminal Window 2 (Cacti API Server)**
 ```sh
 docker run \
-  --network host \
+  --network=host \
   --rm \
   --publish 3000:3000 \
   --publish 4000:4000 \
-  --env PLUGINS='[{"packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric", "type": "org.hyperledger.cactus.plugin_import_type.LOCAL", "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",  "options": {"instanceId": "some-unique-fabric-connector-instance-id", "dockerBinary": "usr/local/bin/docker","cliContainerEnv": {
-    "CORE_PEER_LOCALMSPID": "Org1MSP",
-    "CORE_PEER_ADDRESS": "peer0.org1.example.com:7051",
-    "CORE_PEER_MSPCONFIGPATH":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp",
-    "CORE_PEER_TLS_ROOTCERT_FILE":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt",
-    "ORDERER_TLS_ROOTCERT_FILE":
-      "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
-  },
-  "discoveryOptions": {
-    "enabled": true,
-    "asLocalhost": true
+  --env AUTHORIZATION_PROTOCOL='NONE' \
+  --env AUTHORIZATION_CONFIG_JSON='{}' \
+  --env GRPC_TLS_ENABLED=false \
+  --env API_TLS_CERT_PEM=- \
+  --env API_TLS_CLIENT_CA_PEM=- \
+  --env API_TLS_KEY_PEM=- \
+  --env API_TLS_ENABLED=false \
+  --env API_MTLS_ENABLED=false \
+  --env API_HOST=0.0.0.0 \
+  --env LOG_LEVEL=INFO \
+  --env PLUGINS='[
+  {
+    "packageName": "@hyperledger/cactus-plugin-ledger-connector-fabric",
+    "type": "org.hyperledger.cactus.plugin_import_type.LOCAL",
+    "action": "org.hyperledger.cactus.plugin_import_action.INSTALL",
+    "options": {
+      "instanceId": "some-unique-fabric-connector-instance-id",
+      "dockerBinary": "usr/local/bin/docker",
+      "peerBinary": "/fabric-samples/bin/peer",
+      "connectionProfile": {
+        "name": "TODO-FILL-OUT-YOUR-CONNECTION-PROFILE-DETAILS",
+        "version": "TODO-FILL-OUT-YOUR-CONNECTION-PROFILE-DETAILS",
+        "organizations": {},
+        "peers": {}
+      },
+      "cliContainerEnv": {
+        "CORE_PEER_LOCALMSPID": "Org1MSP",
+        "CORE_PEER_ADDRESS": "peer0.org1.example.com:7051",
+        "CORE_PEER_MSPCONFIGPATH": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp",
+        "CORE_PEER_TLS_ROOTCERT_FILE": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt",
+        "ORDERER_TLS_ROOTCERT_FILE": "/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+      },
+      "discoveryOptions": {
+        "enabled": true,
+        "asLocalhost": true
+      }
+    }
   }
-  }}}]' \
-  cplcb
+]' \
+  ghcr.io/hyperledger/cactus-cmd-api-server:2024-07-03t18-38-45-dev-65adc3255
 ```
 
-**Terminal Window 3 (curl - replace eth accounts as needed)**
+FIXME: This does not work. We need to (at the very least)
+1. add the a keychain plugin to the API server config
+2. load the keychain up with credentials that can be used to access the Ledger
+3. reference the keychain entry created in step 2 as the signing credential below.
+
+**Terminal Window 3 (cURL)**
 ```sh
 curl --location --request POST 'http://127.0.0.1:4000/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/run-transaction' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    channelName: "mychannel",
-    contractName: "contract-example";
-    invocationType: "FabricContractInvocationType.SEND";
-    methodName: "example"
+  "channelName": "mychannel",
+  "contractName": "basic",
+  "invocationType": "FabricContractInvocationType.SEND",
+  "params": ["some-unique-asset-id-1", "Green", "19", "Peter", "9999"],
+  "methodName": "CreateAsset",
+  "signingCredential": {
+    "keychainId": "FIXME",
+    "keychainRef": "FIXME"
+  }
 }'
 ```
 
 The above should produce a response that looks similar to this:
 
 ```json
-{
-    "success": true,
-    "data": {
-        "transactionReceipt": {
-            "blockHash": "0x7c97c038a5d3bd84613fe23ed442695276d5d2df97f4e7c4f10ca06765033ffd",
-            "blockNumber": 1218,
-            "contractAddress": null,
-            "cumulativeGasUsed": 21000,
-            "from": "0x627306090abab3a6e1400e9345bc60c78a8bef57",
-            "gasUsed": 21000,
-            "logs": [],
-            "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-            "status": true,
-            "to": "0xf17f52151ebef6c7334fad080c5704d77216b732",
-            "transactionHash": "0xc7fcb46c735bdc696d500bfc70c72595a2b8c31813929e5c61d9a5aec3376d6f",
-            "transactionIndex": 0
-        }
-    }
-}
+// FIXME
 ```
 
 
@@ -485,7 +671,7 @@ Once Prometheus is setup, the corresponding scrape_config needs to be added to t
     - targets: ['{host}:{port}']
 ```
 
-Here the `host:port` is where the prometheus exporter metrics are exposed. The test cases (For example, packages/cactus-plugin-ledger-connector-fabric/src/test/typescript/integration/fabric-v1-4-x/run-transaction-endpoint-v1.test.ts) exposes it over `0.0.0.0` and a random port(). The random port can be found in the running logs of the test case and looks like (42379 in the below mentioned URL)
+Here the `host:port` is where the prometheus exporter metrics are exposed. The test cases (For example, `packages/cactus-plugin-ledger-connector-fabric/src/test/typescript/integration/fabric-v2-2-x/run-transaction-endpoint-v1.test.ts`) exposes it over `0.0.0.0` and a random port(). The random port can be found in the running logs of the test case and looks like (42379 in the below mentioned URL)
 `Metrics URL: http://0.0.0.0:42379/api/v1/plugins/@hyperledger/cactus-plugin-ledger-connector-fabric/get-prometheus-exporter-metrics`
 
 Once edited, you can start the prometheus service by referencing the above edited prometheus.yml file.
@@ -506,7 +692,7 @@ This file lists all the prometheus metrics and what they are used for.
 
 We welcome contributions to Hyperledger Cactus in many forms, and there’s always plenty to do!
 
-Please review [CONTIRBUTING.md](../../CONTRIBUTING.md) to get started.
+Please review [CONTRIBUTING.md](../../CONTRIBUTING.md) to get started.
 
 ## 6. License
 

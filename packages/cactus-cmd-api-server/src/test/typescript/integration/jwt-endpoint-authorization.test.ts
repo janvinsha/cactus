@@ -9,6 +9,10 @@ import {
 import expressJwt from "express-jwt";
 import "jest-extended";
 
+import { LoggerProvider, LogLevelDesc } from "@hyperledger/cactus-common";
+import { IJoseFittingJwtParams } from "@hyperledger/cactus-common";
+import { Configuration } from "@hyperledger/cactus-core-api";
+
 import {
   ApiServer,
   ConfigService,
@@ -16,8 +20,6 @@ import {
   isHealthcheckResponse,
 } from "../../../main/typescript/public-api";
 import { DefaultApi as ApiServerApi } from "../../../main/typescript/public-api";
-import { LoggerProvider, LogLevelDesc } from "@hyperledger/cactus-common";
-import { Configuration } from "@hyperledger/cactus-core-api";
 import { AuthorizationProtocol } from "../../../main/typescript/config/authorization-protocol";
 import { IAuthorizationConfig } from "../../../main/typescript/authzn/i-authorization-config";
 
@@ -30,7 +32,7 @@ const log = LoggerProvider.getOrCreate({
 
 describe(testCase, () => {
   let apiServer: ApiServer,
-    expressJwtOptions: expressJwt.Options,
+    expressJwtOptions: expressJwt.Params & IJoseFittingJwtParams,
     jwtKeyPair: GenerateKeyPairResult,
     apiSrvOpts: ICactusApiServerOptions;
 
@@ -70,6 +72,7 @@ describe(testCase, () => {
     apiSrvOpts.apiPort = 0;
     apiSrvOpts.cockpitPort = 0;
     apiSrvOpts.grpcPort = 0;
+    apiSrvOpts.crpcPort = 0;
     apiSrvOpts.apiTlsEnabled = false;
     apiSrvOpts.plugins = [];
     const config = await configService.newExampleConfigConvict(apiSrvOpts);
@@ -84,7 +87,11 @@ describe(testCase, () => {
     try {
       expect(expressJwtOptions).toBeTruthy();
 
-      const jwtPayload = { name: "Peter", location: "London" };
+      const jwtPayload = {
+        name: "Peter",
+        location: "London",
+        scope: "read:health",
+      };
       const tokenGood = await new SignJWT(jwtPayload)
         .setProtectedHeader({
           alg: "RS256",
@@ -97,7 +104,6 @@ describe(testCase, () => {
       const startResponse = apiServer.start();
       await expect(startResponse).not.toReject;
       expect(startResponse).toBeTruthy();
-
       const addressInfoApi = (await startResponse).addressInfoApi;
       const protocol = apiSrvOpts.apiTlsEnabled ? "https" : "http";
       const { address, port } = addressInfoApi;

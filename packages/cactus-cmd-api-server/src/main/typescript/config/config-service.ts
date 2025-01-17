@@ -3,16 +3,8 @@ import { existsSync, readFileSync } from "fs";
 import convict, { Schema, Config, SchemaObj } from "convict";
 import { ipaddress } from "convict-format-with-validator";
 import { v4 as uuidV4 } from "uuid";
-import {
-  generateKeyPair,
-  exportPKCS8,
-  exportSPKI,
-  importPKCS8,
-  GeneralSign,
-  generalVerify,
-} from "jose";
-import type { Options as ExpressJwtOptions } from "express-jwt";
-import jsonStableStringify from "json-stable-stringify";
+import { generateKeyPair, exportPKCS8, exportSPKI } from "jose";
+import type { Params as ExpressJwtOptions } from "express-jwt";
 import {
   LoggerProvider,
   Logger,
@@ -35,12 +27,12 @@ convict.addFormat(FORMAT_PLUGIN_ARRAY);
 convict.addFormat(ipaddress);
 
 export interface ICactusApiServerOptions {
+  crpcPort: number;
+  crpcHost: string;
   pluginManagerOptionsJson: string;
   authorizationProtocol: AuthorizationProtocol;
   authorizationConfigJson: IAuthorizationConfig;
   configFile: string;
-  cactusNodeId: string;
-  consortiumId: string;
   logLevel: LogLevelDesc;
   tlsDefaultMaxVersion: SecureVersion;
   cockpitEnabled: boolean;
@@ -65,8 +57,6 @@ export interface ICactusApiServerOptions {
   grpcPort: number;
   grpcMtlsEnabled: boolean;
   plugins: PluginImport[];
-  keyPairPem: string;
-  keychainSuffixKeyPairPem: string;
   minNodeVersion: string;
   enableShutdownHook: boolean;
 }
@@ -81,19 +71,19 @@ export class ConfigService {
     `========================\n\n`;
 
   public static getHelpText(): string {
-    const schema: any = ConfigService.getConfigSchema();
+    const schema: Record<string, unknown> = ConfigService.getConfigSchema();
 
     const argsHelpText = Object.keys(schema)
       .map(
         (optionName: string) =>
           `  ${optionName}:` +
-          `\n\t\tDescription: ${schema[optionName].doc}` +
+          `\n\t\tDescription: ${(schema[optionName] as { doc: string }).doc}` +
           `\n\t\tDefault: ${
-            schema[optionName].default ||
+            (schema[optionName] as { default?: string }).default ||
             "Mandatory parameter without a default value."
           }` +
-          `\n\t\tEnv: ${schema[optionName].env}` +
-          `\n\t\tCLI: --${schema[optionName].arg}`,
+          `\n\t\tEnv: ${(schema[optionName] as { env: string }).env}` +
+          `\n\t\tCLI: --${(schema[optionName] as { arg: string }).arg}`,
       )
       .join("\n");
 
@@ -102,9 +92,22 @@ export class ConfigService {
 
   private static getConfigSchema(): Schema<ICactusApiServerOptions> {
     return {
+      crpcHost: {
+        doc: "The host to bind the CRPC fastify instance to. Secure default is: 127.0.0.1. Use 0.0.0.0 to bind for any host.",
+        format: "ipaddress",
+        env: "CRPC_HOST",
+        arg: "crpc-host",
+        default: "127.0.0.1",
+      },
+      crpcPort: {
+        doc: "The HTTP port to bind the CRPC fastify server endpoints to.",
+        format: "port",
+        env: "CRPC_PORT",
+        arg: "crpc-port",
+        default: 6000,
+      },
       pluginManagerOptionsJson: {
-        doc:
-          "Can be used to override npm registry and authentication details for example. See https://www.npmjs.com/package/live-plugin-manager#pluginmanagerconstructoroptions-partialpluginmanageroptions for further details.",
+        doc: "Can be used to override npm registry and authentication details for example. See https://www.npmjs.com/package/live-plugin-manager#pluginmanagerconstructoroptions-partialpluginmanageroptions for further details.",
         format: "*",
         default: "{}",
         env: "PLUGIN_MANAGER_OPTIONS_JSON",
@@ -123,7 +126,7 @@ export class ConfigService {
             throw new Error(m);
           }
         },
-        default: (null as unknown) as AuthorizationProtocol,
+        default: null as unknown as AuthorizationProtocol,
         env: "AUTHORIZATION_PROTOCOL",
         arg: "authorization-protocol",
       },
@@ -173,30 +176,11 @@ export class ConfigService {
         },
       } as SchemaObj<PluginImport[]>,
       configFile: {
-        doc:
-          "The path to a config file that holds the configuration itself which will be parsed and validated.",
+        doc: "The path to a config file that holds the configuration itself which will be parsed and validated.",
         format: "*",
         default: "",
         env: "CONFIG_FILE",
         arg: "config-file",
-      },
-      consortiumId: {
-        doc:
-          "Identifier of the consortium your node is part of. " +
-          " Can be any string of characters such as a UUID",
-        format: ConfigService.formatNonBlankString,
-        default: null as string | null,
-        env: "CONSORTIUM_ID",
-        arg: "consortium-id",
-      },
-      cactusNodeId: {
-        doc:
-          "Identifier of this particular Cactus node. Must be unique among the total set of Cactus nodes running in any " +
-          "given Cactus deployment. Can be any string of characters such as a UUID or an Int64",
-        format: ConfigService.formatNonBlankString,
-        default: null as string | null,
-        env: "CACTUS_NODE_ID",
-        arg: "cactus-node-id",
       },
       logLevel: {
         doc:
@@ -243,8 +227,7 @@ export class ConfigService {
         default: false,
       },
       cockpitHost: {
-        doc:
-          "The host to bind the Cockpit webserver to. Secure default is: 127.0.0.1. Use 0.0.0.0 to bind for any host.",
+        doc: "The host to bind the Cockpit webserver to. Secure default is: 127.0.0.1. Use 0.0.0.0 to bind for any host.",
         format: "ipaddress",
         default: "127.0.0.1",
         env: "COCKPIT_HOST",
@@ -258,8 +241,7 @@ export class ConfigService {
         default: 3000,
       },
       cockpitWwwRoot: {
-        doc:
-          "The file-system path pointing to the static files of web application served as the cockpit by the API server.",
+        doc: "The file-system path pointing to the static files of web application served as the cockpit by the API server.",
         format: "*",
         env: "COCKPIT_WWW_ROOT",
         arg: "cockpit-www-root",
@@ -331,8 +313,7 @@ export class ConfigService {
         default: null as string | null,
       },
       apiHost: {
-        doc:
-          "The host to bind the API to. Secure default is: 127.0.0.1. Use 0.0.0.0 to bind for any host.",
+        doc: "The host to bind the API to. Secure default is: 127.0.0.1. Use 0.0.0.0 to bind for any host.",
         format: "ipaddress",
         env: "API_HOST",
         arg: "api-host",
@@ -417,27 +398,7 @@ export class ConfigService {
         arg: "grpc-tls-enabled",
         default: true,
       },
-      keyPairPem: {
-        sensitive: true,
-        doc:
-          "Key pair (private+public) of this Cactus node in the standard " +
-          " PEM format.",
-        env: "KEY_PAIR_PEM",
-        arg: "key-pair-pem",
-        format: ConfigService.formatNonBlankString,
-        default: null as string | null,
-      },
-      keychainSuffixKeyPairPem: {
-        doc:
-          "The key under which to store/retrieve the key pair PEM from the " +
-          " keychain of this Cactus node (API server) The complete lookup key" +
-          " is constructed from the ${CACTUS_NODE_ID}" +
-          "${KEYCHAIN_SUFFIX_KEY_PAIR_PEM} template.",
-        env: "KEYCHAIN_SUFFIX_KEY_PAIR_PEM",
-        arg: "keychain-suffix-key-pair-pem",
-        format: "*",
-        default: "CACTUS_NODE_KEY_PAIR_PEM",
-      },
+
       enableShutdownHook: {
         doc:
           "It will cause the API server to listen to OS process signals and will attempt " +
@@ -566,7 +527,7 @@ export class ConfigService {
     const cockpitPort = (schema.cockpitPort as SchemaObj).default;
 
     const pkiGenerator = new SelfSignedPkiGenerator();
-    const pkiServer: IPki = pkiGenerator.create("localhost");
+    const pkiServer: IPki = pkiGenerator.create("127.0.0.1");
 
     const plugins: PluginImport[] = [
       {
@@ -592,7 +553,7 @@ export class ConfigService {
 
     const jwtSecret = uuidV4();
 
-    const expressJwtOptions: ExpressJwtOptions = {
+    const expressJwtOptions: ExpressJwtOptions & { [key: string]: unknown } = {
       secret: jwtSecret,
       algorithms: ["RS256"],
       audience: "org.hyperledger.cactus.jwt.audience",
@@ -609,12 +570,12 @@ export class ConfigService {
     };
 
     return {
+      crpcHost: (schema.crpcHost as SchemaObj).default,
+      crpcPort: (schema.crpcPort as SchemaObj).default,
       pluginManagerOptionsJson: "{}",
       authorizationProtocol: AuthorizationProtocol.JSON_WEB_TOKEN,
       authorizationConfigJson,
       configFile: ".config.json",
-      cactusNodeId: uuidV4(),
-      consortiumId: uuidV4(),
       logLevel: "debug",
       minNodeVersion: (schema.minNodeVersion as SchemaObj).default,
       tlsDefaultMaxVersion: "TLSv1.3",
@@ -639,9 +600,6 @@ export class ConfigService {
       cockpitTlsCertPem: pkiServer.certificatePem,
       cockpitTlsKeyPem: pkiServer.privateKeyPem,
       cockpitTlsClientCaPem: "-", // Cockpit mTLS is off so this will not crash the server
-      keyPairPem,
-      keychainSuffixKeyPairPem: (schema.keychainSuffixKeyPairPem as SchemaObj)
-        .default,
       plugins,
       enableShutdownHook,
     };
@@ -661,10 +619,10 @@ export class ConfigService {
     env?: NodeJS.ProcessEnv;
     args?: string[];
   }): Config<ICactusApiServerOptions> {
-    const schema: Schema<ICactusApiServerOptions> = ConfigService.getConfigSchema();
+    const schema: Schema<ICactusApiServerOptions> =
+      ConfigService.getConfigSchema();
     ConfigService.config = (convict as any)(schema, options);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
     if (ConfigService.config.get("configFile")) {
       const configFilePath = ConfigService.config.get("configFile");
       ConfigService.config.loadFile(configFilePath);
@@ -680,30 +638,5 @@ export class ConfigService {
     });
     logger.info("Configuration validation OK.");
     return ConfigService.config;
-  }
-
-  /**
-   * Validation that prevents operators from mistakenly deploying a key pair
-   * that they may not be operational for whatever reason.
-   *
-   * @throws If a dummy sign+verification operation fails for any reason.
-   */
-  async validateKeyPairMatch(): Promise<void> {
-    const fnTag = "ConfigService#validateKeyPairMatch()";
-    // FIXME most of this lowever level crypto code should be in a commons package that's universal
-    const keyPairPem = ConfigService.config.get("keyPairPem");
-    const keyPair = await importPKCS8(keyPairPem, "ES256K");
-
-    const payloadJson = jsonStableStringify({ hello: "world" });
-    const encoder = new TextEncoder();
-    const sign = new GeneralSign(encoder.encode(payloadJson));
-    sign.addSignature(keyPair).setProtectedHeader({ alg: "ES256K" });
-    const jws = await sign.sign();
-
-    try {
-      await generalVerify(jws, keyPair);
-    } catch (ex) {
-      throw new Error(`${fnTag} Invalid key pair PEM: ${ex && ex.stack}`);
-    }
   }
 }

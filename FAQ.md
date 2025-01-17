@@ -1,21 +1,21 @@
-# Frequently Asked Questions - Hyperledger Cactus <!-- omit in toc -->
+# Frequently Asked Questions - Hyperledger Cacti <!-- omit in toc -->
 
-- Quick-Start Topics:
-  - [What are the minimum and recommended hardware specs? Do you have a cool story about this?](#what-are-the-minimum-and-recommended-hardware-specs-do-you-have-a-cool-story-about-this)
-  - [Cactus API-Server returns `Unauthorized Error` using Postman on local machine](#cactus-api-server-returns-unauthorized-error-using-postman-on-local-machine)
-  - [npm install fails with `code EMFILE` (syscall connect)](#npm-install-fails-with-code-emfile-syscall-connect)
-  - [Where does the project name come from?](#where-does-the-project-name-come-from)
-- Other Topics:
-  - [Re-building the code after I change it slow. What to do?](#re-building-the-code-after-i-change-it-slow-what-to-do)
-  - [The watch script fails with `Internal watch failed: watch ENOSPC`](#the-watch-script-fails-with-internal-watch-failed-watch-enospc)
-  - [How can I not re-build the whole project every time I make a small change?](#how-can-i-not-re-build-the-whole-project-every-time-i-make-a-small-change)
-  - [Why do you need all these packages/monorepo? It looks complicated!](#why-do-you-need-all-these-packagesmonorepo-it-looks-complicated)
-  - [Prototyping something and the linter blocking my builds is slowing me down needlessly](#prototyping-something-and-the-linter-blocking-my-builds-is-slowing-me-down-needlessly)
-  - [Why do all the tests bind the HTTP/S listeners to a random port?](#why-do-all-the-tests-bind-the-https-listeners-to-a-random-port)
-  - [HTTP requests sent with Postman/curl/etc. hang if I'm debugging a test case with VSCode, why?](#http-requests-sent-with-postmancurletc-hang-if-im-debugging-a-test-case-with-vscode-why)
-  - [How do I run test cases with my own ledger images?](#how-do-i-run-test-cases-with-my-own-ledger-images)
+- [1. What are the minimum and recommended hardware specs? Do you have a cool story about this?](#1-what-are-the-minimum-and-recommended-hardware-specs-do-you-have-a-cool-story-about-this)
+- [2. Cacti API-Server returns `Unauthorized Error` using Postman on local machine](#2-cacti-api-server-returns-unauthorized-error-using-postman-on-local-machine)
+- [3. npm install fails with `code EMFILE` (syscall connect)](#3-npm-install-fails-with-code-emfile-syscall-connect)
+- [4. Where does the project name come from?](#4-where-does-the-project-name-come-from)
+- [5. Re-building the code after I change it slow. What to do?](#5-re-building-the-code-after-i-change-it-slow-what-to-do)
+- [6. The watch script fails with `Internal watch failed: watch ENOSPC`](#6-the-watch-script-fails-with-internal-watch-failed-watch-enospc)
+- [7. How can I not re-build the whole project every time I make a small change?](#7-how-can-i-not-re-build-the-whole-project-every-time-i-make-a-small-change)
+- [8. Why do you need all these packages/monorepo? It looks complicated!](#8-why-do-you-need-all-these-packagesmonorepo-it-looks-complicated)
+- [9. Prototyping something and the linter blocking my builds is slowing me down needlessly](#9-prototyping-something-and-the-linter-blocking-my-builds-is-slowing-me-down-needlessly)
+- [10. Why do all the tests bind the HTTP/S listeners to a random port?](#10-why-do-all-the-tests-bind-the-https-listeners-to-a-random-port)
+- [11. HTTP requests sent with Postman/curl/etc. hang if I'm debugging a test case with VSCode, why?](#11-http-requests-sent-with-postmancurletc-hang-if-im-debugging-a-test-case-with-vscode-why)
+- [12. How do I run test cases with my own ledger images?](#12-how-do-i-run-test-cases-with-my-own-ledger-images)
+- [13. How do I re-run a single job in the CI through the GitHub UI?](#13-how-do-i-re-run-a-single-job-in-the-ci-through-the-github-ui)
+- [14. How to fix the script configure, stuck at `RequestError: connect ETIMEOUT 2606:4700:6810:223:443` (or similar ports)?](#14-how-to-fix-the-script-configure-stuck-at-requesterror-connect-etimeout-260647006810223443-or-similar-ports)
 
-## What are the minimum and recommended hardware specs? Do you have a cool story about this?
+## 1. What are the minimum and recommended hardware specs? Do you have a cool story about this?
 
 > If and when people read this in the future, always inflate the numbers
 > a bit as we continue to add more and more tests every day (test automation is
@@ -35,8 +35,8 @@ Also, take a look into **VSCode Insiders** which might be handy in this situatio
 tests that failed were the Corda ones because those are hungrier than the others.
 
 
-## Cactus API-Server returns `Unauthorized Error` using Postman on local machine
-After installation of latest Cactus version a first API-Test with Postman is showing `Unauthorized Error`:
+## 2. Cacti API-Server returns `Unauthorized Error` using Postman on local machine
+After installation of latest Cacti version a first API-Test with Postman is showing `Unauthorized Error`:
    - Reason:  We have decided that the
 software should be `secure by default` above all else and allow for
 customization/degradation of security as an opt-in feature rather than starting from that state.
@@ -44,9 +44,9 @@ customization/degradation of security as an opt-in feature rather than starting 
     - "authorizationProtocol": "NONE"
     - "apiMtlsEnabled": false
     - "apiTlsEnabled": false
-    - Restart the Cactus API-Server to use the changed settings
+    - Restart the Cacti API-Server to use the changed settings
 
-## npm install fails with `code EMFILE` (syscall connect)
+## 3. npm install fails with `code EMFILE` (syscall connect)
 
 If you encounter this error it happens because the number of open files permitted
 by your operating system is lower than the number of files npm needs to have open
@@ -60,7 +60,7 @@ will increase said limit to 200k from the default () 4096.
 echo fs.file-max=200000 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 ```
 
-## Where does the project name come from?
+## 4. Where does the project name come from?
 
 It was the first one on our proposed list of names that satisfied the following criteria:
 
@@ -73,7 +73,7 @@ some of the maintainers (Peter, Shingo, Takuma) have met in-person for the first
 The area has a lot of cacti some of which were also featured in the official graphics
 of the conference itself.
 
-## Re-building the code after I change it slow. What to do?
+## 5. Re-building the code after I change it slow. What to do?
 
 Try using the `npm run watch` command which will trigger a re-build as soon as
 you save a .ts or openapi.json file. It only builds the specific packages that
@@ -85,7 +85,7 @@ so if you started the script after having made a change then quickly make
 another change such as adding a new line or something like it in order to trigger
 the file save which will in turn trigger the re-build.
 
-## The watch script fails with `Internal watch failed: watch ENOSPC`
+## 6. The watch script fails with `Internal watch failed: watch ENOSPC`
 
 This happens because by default your operating system is configured to limit
 the number of files watchable to a number lower than the number of source files
@@ -101,11 +101,11 @@ echo fs.inotify.max_user_watches=582222 | sudo tee -a /etc/sysctl.conf && sudo s
 [Stackoverflow.com - Node.JS: Getting error : [nodemon] Internal watch failed: watch ENOSPC](https://stackoverflow.com/a/34664097/698470)
 
 
-## How can I not re-build the whole project every time I make a small change?
+## 7. How can I not re-build the whole project every time I make a small change?
 
 The answer is the same as for [Re-building the code after I change it slow. What to do?](#re-building-the-code-after-i-change-it-slow-what-to-do)
 
-## Why do you need all these packages/monorepo? It looks complicated!
+## 8. Why do you need all these packages/monorepo? It looks complicated!
 
 It is a bit more complicated than having a single package indeed, but it provides
 us with the flexibility we need to
@@ -114,7 +114,7 @@ packages but not others
 b) follow the unix philosophy of having smaller components/tools that do one thing and do that very well (hopefully)
 c) there are more reasons we could mention but they are all mostly just reiterations of the above 2
 
-## Prototyping something and the linter blocking my builds is slowing me down needlessly
+## 9. Prototyping something and the linter blocking my builds is slowing me down needlessly
 
 You have a number of options at your disposal, all achieving roughly the same outcome:
 1. You can turn off the linter temporarily in the code file that you are working on with a comment such as this: `/* eslint-disable */`
@@ -134,7 +134,7 @@ with something like this for example:
 
 `"lint": "echo OK",`
 
-## Why do all the tests bind the HTTP/S listeners to a random port?
+## 10. Why do all the tests bind the HTTP/S listeners to a random port?
 
 This makes it much more cumbersome to do debugging while a test case is running.
 The reason why we need it is because if we always used the same ports, we could
@@ -146,7 +146,7 @@ likely triple if we started running tests sequentially.
 The best workaround to this for now is to just set the port manually to a fixed
 number when you are debugging a specific test case and then set it back to zero
 prior to sending your pull request.
-## HTTP requests sent with Postman/curl/etc. hang if I'm debugging a test case with VSCode, why?
+## 11. HTTP requests sent with Postman/curl/etc. hang if I'm debugging a test case with VSCode, why?
 
 When you use the execution stops on a breakpoint, that suspends all activities
 from happening not just the test case's code itself. Meaning that your HTTP
@@ -156,7 +156,7 @@ proceed via the UI/shortcuts of the debugger.
 Once you let the execution continue, requests that previously appeared to be
 hanging should finish successfully.
 
-## How do I run test cases with my own ledger images?
+## 12. How do I run test cases with my own ledger images?
 
 Build and tag the image locally using a name that is non-ambiguous with the official tags. Modify the test code to skip the pull using the start method's omitPull parameter - e.g. replace
 
@@ -178,11 +178,65 @@ this.fabric = new FabricTestLedgerV1({
 });
 ```
 
-Quorum
+Besu
 ```
-this.quorum = new QuorumTestLedger({
+this.besu = new BesuTestLedger({
   containerImageName: "*your image name*",
   containerImageVersion: "*your image tag*",
   ...
 });
 ```
+
+## 13. How do I re-run a single job in the CI through the GitHub UI?
+
+For example let's assume that you'd like to-run the yarn_lint` job from
+the ci.yaml workflow file. This usually becomes a goal when said job is
+flaky (sometimes fails for no valid reason) and you want to re-execute
+only that job instead of the entire CI test suite (which is very time
+and resource consuming compared to just a single job).
+
+1. First you have to locate the job you wish to re-execute and then click "Details" next to it:
+![pull-requests-main-page-ci-job-list-1.png](./docs/assets/ci-single-job-re-run-tutorial/pull-requests-main-page-ci-job-list-1.png)
+2. Then once on the details page, locate once again the job on the left 
+hand side list and observe the refresh icon next to it. Note that this
+icon only becomes visible after the full workflow (e.g. all the jobs in it)
+have concluded execution one way or another (fail or succeed, does not matter just that they are finished)
+![pull-request-ci-workflow-details-page-1.png](./docs/assets/ci-single-job-re-run-tutorial/pull-request-ci-workflow-details-page-1.png)
+1. Also note that the refresh icon shown on the  screenshot above will only
+become visible if you hover over the button with your cursor.
+
+You can also use the refresh icon button on the top right of the screen to achieve
+the same result:
+![pull-request-ci-workflow-details-page-2.png](./docs/assets/ci-single-job-re-run-tutorial/pull-request-ci-workflow-details-page-2.png)
+
+
+## 14. How to fix the script configure, stuck at `RequestError: connect ETIMEOUT 2606:4700:6810:223:443` (or similar ports)?
+
+If you are having errors while running the configure script, similar to this:
+
+```
+YN0001: | RequestError: connect ETIMEOUT 2606:4700:6810:223:443
+at ClientRequest.<anonymous> (/home/ubuntu/cacti/.yarn/releases/yarn-4.1.0.cjs:195:14340)
+at Object.onceWrapper (node:events:632:26)
+at ClientRequest.emit (node:events:529:35)
+at o.emit (/home/ubuntu/cacti/.yarn/releases/yarn-4.1.0.cjs:190:90286)
+at TLSSocket.socketErrorListener (node:events:501:9)
+at TLSSocket.emit (node:events:517:28)
+at emitErrorNT (node:internal/streams/destroy:151:8)
+at emitErrorCloseNT (node:internal/streams/destroy:116:3)
+.
+.
+```
+
+  *Warning*: The below mentioned changes affect how ipv6 is handled in the entire system and can affect other applications.
+
+Sometimes the IPv6 defaults can lead to npm registry being undiscoverable. To fix this issue (tested on Ubuntu 22.04.4), one can safely disable IPv6 defaults. One such way (via a different configuration file) to achieve this is:
+1. Create a file `/etc/sysctl.d/60-ipv6-disable.conf`
+2. Add the following contents to the file 
+   
+  ```
+    net.ipv6.conf.all.disable_ipv6 = 1
+    net.ipv6.conf.default.disable_ipv6 = 1
+    net.ipv6.conf.lo.disable_ipv6 = 1
+  ```
+1. Start the service: `service procps start`

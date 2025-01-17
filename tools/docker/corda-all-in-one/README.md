@@ -44,9 +44,24 @@ docker run --rm --privileged caio48
 ### Build and Run Image Locally
 
 ```sh
-DOCKER_BUILDKIT=1 docker build ./tools/docker/corda-all-in-one/corda-v4_8-flowdb/ -t caio48-flowdb
+DOCKER_BUILDKIT=1 docker build --progress=plain ./tools/docker/corda-all-in-one/corda-v4_8-flowdb/ -t caio48-flowdb
 docker run --rm --privileged caio48-flowdb
 ```
+
+# cactus-corda-4-12-all-in-one
+
+> This docker image is for `testing` and `development` only.
+> Do NOT use in production!
+
+## Usage
+
+### Build and Run Image Locally
+
+```sh
+DOCKER_BUILDKIT=1 docker build --progress=plain ./tools/docker/corda-all-in-one/corda-v4_12/ -f ./tools/docker/corda-all-in-one/corda-v4_12/Dockerfile -t caio412
+docker run --rm --privileged caio412
+```
+
 
 # cactus-corda-5-all-in-one-solar
 

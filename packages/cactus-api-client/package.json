@@ -1,6 +1,6 @@
 {
   "name": "@hyperledger/cactus-api-client",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Universal library used by both front end and back end components of Cactus. Aims to be a developer swiss army knife.",
   "keywords": [
     "Hyperledger",
@@ -9,19 +9,19 @@
     "Blockchain",
     "Distributed Ledger Technology"
   ],
-  "homepage": "https://github.com/hyperledger/cactus#readme",
+  "homepage": "https://github.com/hyperledger/cacti#readme",
   "bugs": {
-    "url": "https://github.com/hyperledger/cactus/issues"
+    "url": "https://github.com/hyperledger-cacti/cacti/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hyperledger/cactus.git"
+    "url": "git+https://github.com/hyperledger/cacti.git"
   },
   "license": "Apache-2.0",
   "author": {
     "name": "Hyperledger Cactus Contributors",
     "email": "cactus@lists.hyperledger.org",
-    "url": "https://www.hyperledger.org/use/cactus"
+    "url": "https://www.hyperledger.org/use/cacti"
   },
   "contributors": [
     {
@@ -50,18 +50,25 @@
     "webpack:dev:web": "webpack --env=dev --target=web --config ../../webpack.config.js"
   },
   "dependencies": {
-    "@hyperledger/cactus-common": "1.0.0",
-    "@hyperledger/cactus-core": "1.0.0",
-    "@hyperledger/cactus-core-api": "1.0.0",
-    "@hyperledger/cactus-plugin-consortium-manual": "1.0.0",
-    "rxjs": "7.3.0"
+    "@hyperledger/cactus-common": "2.1.0",
+    "@hyperledger/cactus-core": "2.1.0",
+    "@hyperledger/cactus-core-api": "2.1.0",
+    "@hyperledger/cactus-plugin-consortium-manual": "2.1.0",
+    "jsonwebtoken": "9.0.0",
+    "rxjs": "7.8.1",
+    "socket.io-client-fixed-types": "4.5.4"
   },
   "devDependencies": {
-    "@hyperledger/cactus-test-tooling": "1.0.0"
+    "@hyperledger/cactus-test-tooling": "2.1.0",
+    "@types/jsonwebtoken": "9.0.0",
+    "@types/lodash": "4.14.195",
+    "@types/node": "18.11.9",
+    "http-status-codes": "2.3.0",
+    "lodash": "4.17.21"
   },
   "engines": {
-    "node": ">=10",
-    "npm": ">=6"
+    "node": ">=18",
+    "npm": ">=8"
   },
   "publishConfig": {
     "access": "public"

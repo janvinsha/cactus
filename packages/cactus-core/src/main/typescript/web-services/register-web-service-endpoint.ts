@@ -1,7 +1,9 @@
-import expressJwtAuthz from "express-jwt-authz";
+import expressJwtAuthz, { AuthzOptions } from "express-jwt-authz";
 import { Express } from "express";
 
 import { IWebServiceEndpoint } from "@hyperledger/cactus-core-api";
+
+import { createRuntimeErrorWithCause } from "@hyperledger/cactus-common";
 
 /**
  * Hooks up an endpoint instance to an ExpressJS web app object.
@@ -21,7 +23,7 @@ export async function registerWebServiceEndpoint(
   const provider = endpoint.getAuthorizationOptionsProvider();
   const { isProtected, requiredRoles } = await provider.get();
 
-  const webAppCasted = (webApp as unknown) as Record<
+  const webAppCasted = webApp as unknown as Record<
     string,
     (...a: unknown[]) => unknown
   >;
@@ -29,15 +31,19 @@ export async function registerWebServiceEndpoint(
   const registrationMethod = webAppCasted[httpVerb].bind(webApp);
   try {
     if (isProtected) {
-      const scopeCheckMiddleware = expressJwtAuthz(requiredRoles);
+      const opts: AuthzOptions = {
+        failWithError: true,
+        customScopeKey: "scope",
+        customUserKey: "auth",
+        checkAllScopes: true,
+      };
+      const scopeCheckMiddleware = expressJwtAuthz(requiredRoles, opts);
       registrationMethod(httpPath, scopeCheckMiddleware, requestHandler);
     } else {
       registrationMethod(httpPath, requestHandler);
     }
-  } catch (ex) {
-    throw new Error(
-      `${fnTag} Express verb method ${httpVerb} threw ` +
-        ` while registering endpoint: ${ex.message}`,
-    );
+  } catch (ex: unknown) {
+    const errorMessage = `${fnTag} Express verb method ${httpVerb} threw while registering endpoint on path ${httpPath}`;
+    throw createRuntimeErrorWithCause(errorMessage, ex);
   }
 }

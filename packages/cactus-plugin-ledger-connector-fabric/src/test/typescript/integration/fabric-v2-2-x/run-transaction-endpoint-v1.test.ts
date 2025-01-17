@@ -9,6 +9,9 @@ import express from "express";
 
 import {
   Containers,
+  DEFAULT_FABRIC_2_AIO_IMAGE_NAME,
+  FABRIC_25_LTS_AIO_FABRIC_VERSION,
+  FABRIC_25_LTS_AIO_IMAGE_VERSION,
   FabricTestLedgerV1,
   pruneDockerAllIfGithubAction,
 } from "@hyperledger/cactus-test-tooling";
@@ -45,24 +48,23 @@ import { Configuration } from "@hyperledger/cactus-core-api";
  * ```
  */
 
-const testCase = "runs tx on a Fabric v2.2.0 ledger";
+const testCase = "runs tx on a Fabric v2.5.6 ledger";
 
 describe(testCase, () => {
   const expressApp = express();
   expressApp.use(bodyParser.json({ limit: "250mb" }));
   const server = http.createServer(expressApp);
-  const logLevel: LogLevelDesc = "TRACE";
-  const level = "INFO";
+  const logLevel: LogLevelDesc = "INFO";
   const label = "fabric run transaction test";
-  const log = LoggerProvider.getOrCreate({ level, label });
+  const log = LoggerProvider.getOrCreate({ level: logLevel, label });
   const ledger = new FabricTestLedgerV1({
     emitContainerLogs: true,
     publishAllPorts: true,
     logLevel,
-    imageName: "ghcr.io/hyperledger/cactus-fabric2-all-in-one",
-    imageVersion: "2021-09-02--fix-876-supervisord-retries",
+    imageName: DEFAULT_FABRIC_2_AIO_IMAGE_NAME,
+    imageVersion: FABRIC_25_LTS_AIO_IMAGE_VERSION,
     envVars: new Map([
-      ["FABRIC_VERSION", "2.2.0"],
+      ["FABRIC_VERSION", FABRIC_25_LTS_AIO_FABRIC_VERSION],
       ["CA_VERSION", "1.4.9"],
     ]),
   });
@@ -93,10 +95,10 @@ describe(testCase, () => {
   });
 
   beforeAll(async () => {
-    await ledger.start();
+    await ledger.start({ omitPull: false });
 
     const listenOptions: IListenOptions = {
-      hostname: "localhost",
+      hostname: "127.0.0.1",
       port: 0,
       server,
     };
@@ -225,8 +227,8 @@ describe(testCase, () => {
       const assets = JSON.parse(res.data.functionOutput);
       const asset277 = assets.find((c: { ID: string }) => c.ID === assetId);
       expect(asset277).toBeTruthy();
-      expect(asset277.owner).toBeTruthy();
-      expect(asset277.owner).toEqual(assetOwner);
+      expect(asset277.Owner).toBeTruthy();
+      expect(asset277.Owner).toEqual(assetOwner);
     }
 
     {
@@ -249,6 +251,32 @@ describe(testCase, () => {
     }
 
     {
+      const connectionProfileString = JSON.stringify(connectionProfile);
+      const connectionProfileB64Buffer = Buffer.from(connectionProfileString);
+      const sshConfigString = JSON.stringify(sshConfig);
+      const connectionProfileB64 =
+        connectionProfileB64Buffer.toString("base64");
+      const sshConfigB64Buffer = Buffer.from(sshConfigString);
+      const sshConfigB64 = sshConfigB64Buffer.toString("base64");
+      const pluginOptionsSerialized: IPluginLedgerConnectorFabricOptions = {
+        instanceId: uuidv4(),
+        pluginRegistry,
+        sshConfigB64,
+        cliContainerEnv: {},
+        peerBinary: "/fabric-samples/bin/peer",
+        logLevel,
+        connectionProfileB64,
+        discoveryOptions,
+        eventHandlerOptions: {
+          strategy: DefaultEventHandlerStrategy.NetworkScopeAllfortx,
+          commitTimeout: 300,
+        },
+      };
+      const pluginWithSerializedInputs = new PluginLedgerConnectorFabric(
+        pluginOptionsSerialized,
+      );
+      await pluginWithSerializedInputs.getOrCreateWebServices();
+      await pluginWithSerializedInputs.registerWebServices(expressApp);
       const req: RunTransactionRequest = {
         signingCredential,
         gatewayOptions: {
@@ -262,7 +290,7 @@ describe(testCase, () => {
         contractName,
         methodName: "CreateAsset",
         params: ["asset388", "green", "111", assetOwner, "299"],
-        endorsingPeers: ["org1.example.com", "Org2MSP"],
+        endorsingOrgs: ["org1.example.com", "Org2MSP"],
       };
 
       const res = await apiClient.runTransactionV1(req);
@@ -299,8 +327,8 @@ describe(testCase, () => {
       const assets = JSON.parse(res.data.functionOutput);
       const asset277 = assets.find((c: { ID: string }) => c.ID === assetId);
       expect(asset277).toBeTruthy();
-      expect(asset277.owner).toBeTruthy();
-      expect(asset277.owner).toEqual(assetOwner);
+      expect(asset277.Owner).toBeTruthy();
+      expect(asset277.Owner).toEqual(assetOwner);
     }
   });
 });

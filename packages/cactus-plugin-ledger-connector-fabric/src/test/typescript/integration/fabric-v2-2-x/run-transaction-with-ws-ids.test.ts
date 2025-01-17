@@ -1,5 +1,4 @@
 import { PluginKeychainMemory } from "@hyperledger/cactus-plugin-keychain-memory";
-import test, { Test } from "tape-promise/tape";
 import { IPluginLedgerConnectorFabricOptions } from "../../../../main/typescript/plugin-ledger-connector-fabric";
 import { v4 as uuidv4 } from "uuid";
 import { LogLevelDesc } from "@hyperledger/cactus-common";
@@ -13,18 +12,21 @@ import {
   FabricContractInvocationType,
 } from "../../../../main/typescript/public-api";
 import { DiscoveryOptions } from "fabric-network";
-
-const logLevel: LogLevelDesc = "ERROR";
 import {
   Containers,
   FabricTestLedgerV1,
   pruneDockerAllIfGithubAction,
   WsTestServer,
   WS_IDENTITY_HTTP_PORT,
+  DEFAULT_FABRIC_2_AIO_IMAGE_NAME,
+  FABRIC_25_LTS_AIO_IMAGE_VERSION,
+  FABRIC_25_LTS_AIO_FABRIC_VERSION,
 } from "@hyperledger/cactus-test-tooling";
 import { v4 as internalIpV4 } from "internal-ip";
 import { WsWallet } from "ws-wallet";
 import { WsIdentityClient } from "ws-identity-client";
+
+const logLevel: LogLevelDesc = "INFO";
 
 // test scenario
 // - enroll registrar (both using default identity and webSocket(p256) identity)
@@ -34,115 +36,122 @@ import { WsIdentityClient } from "ws-identity-client";
 // - make invoke (InitLedger) using 1st client
 // - make invoke (TransferAsset) using 2nd client (p384) client
 // - make query ("ReadAsset") using registrar(p256)
-test("run-transaction-with-ws-ids", async (t: Test) => {
-  test.onFailure(async () => {
+
+describe("PluginLedgerConnectorFabric", () => {
+  let ledger: FabricTestLedgerV1;
+  let wsTestContainer: WsTestServer;
+  let wsAdmin: WsWallet;
+  let wsUser: WsWallet;
+  let wsIdClient: WsIdentityClient;
+  let keychainId: string;
+  let keychainPlugin: PluginKeychainMemory;
+  let plugin: PluginLedgerConnectorFabric;
+  const registrarKey = "registrar";
+  const client2Key = "client-ws";
+
+  beforeAll(async () => {
     await Containers.logDiagnostics({ logLevel });
+
+    ledger = new FabricTestLedgerV1({
+      emitContainerLogs: true,
+      publishAllPorts: true,
+      imageName: DEFAULT_FABRIC_2_AIO_IMAGE_NAME,
+      imageVersion: FABRIC_25_LTS_AIO_IMAGE_VERSION,
+      envVars: new Map([["FABRIC_VERSION", FABRIC_25_LTS_AIO_FABRIC_VERSION]]),
+      logLevel,
+    });
+
+    wsTestContainer = new WsTestServer({});
+    await wsTestContainer.start();
+
+    const ci = await Containers.getById(wsTestContainer.containerId);
+    const wsIpAddr = await internalIpV4();
+    const hostPort = await Containers.getPublicPort(WS_IDENTITY_HTTP_PORT, ci);
+
+    await ledger.start({ omitPull: false });
+
+    const connectionProfile = await ledger.getConnectionProfileOrg1();
+    expect(connectionProfile).toBeTruthy();
+
+    const keychainInstanceId = uuidv4();
+    keychainId = uuidv4();
+
+    const wsUrl = `http://${wsIpAddr}:${hostPort}`;
+
+    const wsConfig: IWebSocketConfig = {
+      endpoint: wsUrl,
+      pathPrefix: "/identity",
+    };
+
+    wsAdmin = new WsWallet({
+      keyName: "admin",
+      logLevel,
+      strictSSL: false,
+    });
+
+    wsUser = new WsWallet({
+      keyName: "user",
+      logLevel,
+      strictSSL: false,
+    });
+
+    keychainPlugin = new PluginKeychainMemory({
+      instanceId: keychainInstanceId,
+      keychainId: keychainId,
+      logLevel,
+    });
+
+    const pluginRegistry = new PluginRegistry({ plugins: [keychainPlugin] });
+
+    const discoveryOptions: DiscoveryOptions = {
+      enabled: true,
+      asLocalhost: true,
+    };
+
+    const supportedIdentity: FabricSigningCredentialType[] = [
+      FabricSigningCredentialType.WsX509,
+      FabricSigningCredentialType.X509,
+    ];
+
+    const pluginOptions: IPluginLedgerConnectorFabricOptions = {
+      instanceId: uuidv4(),
+      pluginRegistry,
+      sshConfig: {},
+      cliContainerEnv: {},
+      peerBinary: "not-required",
+      logLevel,
+      connectionProfile,
+      discoveryOptions,
+      eventHandlerOptions: {
+        strategy: DefaultEventHandlerStrategy.NetworkScopeAllfortx,
+        commitTimeout: 300,
+      },
+      supportedIdentity,
+      webSocketConfig: wsConfig,
+    };
+
+    plugin = new PluginLedgerConnectorFabric(pluginOptions);
+
+    wsIdClient = new WsIdentityClient({
+      apiVersion: "v1",
+      endpoint: wsUrl,
+      rpDefaults: {
+        strictSSL: false,
+      },
+    });
   });
 
-  const ledger = new FabricTestLedgerV1({
-    emitContainerLogs: true,
-    publishAllPorts: true,
-    imageName: "ghcr.io/hyperledger/cactus-fabric2-all-in-one",
-    envVars: new Map([["FABRIC_VERSION", "2.2.0"]]),
-    logLevel,
-  });
-
-  test.onFinish(async () => {
+  afterAll(async () => {
     await ledger.stop();
     await ledger.destroy();
     await pruneDockerAllIfGithubAction({ logLevel });
-  });
-
-  const wsTestContainer = new WsTestServer({});
-  await wsTestContainer.start();
-  await ledger.start();
-
-  const connectionProfile = await ledger.getConnectionProfileOrg1();
-  t.ok(connectionProfile, "getConnectionProfileOrg1() out truthy OK");
-
-  const registrarKey = "registrar";
-  const client2Key = "client-ws";
-  const keychainInstanceId = uuidv4();
-  const keychainId = uuidv4();
-
-  const ci = await Containers.getById(wsTestContainer.containerId);
-  const wsIpAddr = await internalIpV4();
-  const hostPort = await Containers.getPublicPort(WS_IDENTITY_HTTP_PORT, ci);
-
-  const wsUrl = `http://${wsIpAddr}:${hostPort}`;
-
-  const wsConfig: IWebSocketConfig = {
-    endpoint: wsUrl,
-    pathPrefix: "/identity",
-  };
-
-  // external web-socket client
-  const wsAdmin = new WsWallet({
-    keyName: "admin",
-    logLevel,
-    strictSSL: false,
-  });
-
-  // external web-socket client
-  const wsUser = new WsWallet({
-    keyName: "user",
-    logLevel,
-    strictSSL: false,
-  });
-
-  test.onFinish(async () => {
     await wsTestContainer.stop();
     await wsTestContainer.destroy();
     await wsAdmin.close();
     await wsUser.close();
   });
 
-  ///
-  const keychainPlugin = new PluginKeychainMemory({
-    instanceId: keychainInstanceId,
-    keychainId: keychainId,
-    logLevel,
-  });
-
-  const pluginRegistry = new PluginRegistry({ plugins: [keychainPlugin] });
-
-  const discoveryOptions: DiscoveryOptions = {
-    enabled: true,
-    asLocalhost: true,
-  };
-  const supportedIdentity: FabricSigningCredentialType[] = [
-    FabricSigningCredentialType.WsX509,
-    FabricSigningCredentialType.X509,
-  ];
-
-  const pluginOptions: IPluginLedgerConnectorFabricOptions = {
-    instanceId: uuidv4(),
-    pluginRegistry,
-    sshConfig: {},
-    cliContainerEnv: {},
-    peerBinary: "not-required",
-    logLevel,
-    connectionProfile,
-    discoveryOptions,
-    eventHandlerOptions: {
-      strategy: DefaultEventHandlerStrategy.NetworkScopeAllfortx,
-      commitTimeout: 300,
-    },
-    supportedIdentity,
-    webSocketConfig: wsConfig,
-  };
-
-  const plugin = new PluginLedgerConnectorFabric(pluginOptions);
-
-  const wsIdClient = new WsIdentityClient({
-    apiVersion: "v1",
-    endpoint: wsUrl,
-    rpDefaults: {
-      strictSSL: false,
-    },
-  });
-
-  t.test("with-webSocketKey", async (t: Test) => {
+  test("run-transaction-with-webSocketKey", async () => {
     let webSocketKeyAdmin, webSocketKeyUser;
     {
       const { sessionId, url } = JSON.parse(
@@ -175,10 +184,10 @@ test("run-transaction-with-ws-ids", async (t: Test) => {
         },
       );
       const rawCert = await keychainPlugin.get(registrarKey + "-ws");
-      t.ok(rawCert);
+      expect(rawCert).toBeTruthy();
       const certData = JSON.parse(rawCert) as IIdentityData;
-      t.equal(certData.type, FabricSigningCredentialType.WsX509);
-      t.notok(certData.credentials.privateKey);
+      expect(certData.type).toBe(FabricSigningCredentialType.WsX509);
+      expect(certData.credentials.privateKey).toBeFalsy();
     }
     {
       // register a client using registrar's ws identity
@@ -196,7 +205,7 @@ test("run-transaction-with-ws-ids", async (t: Test) => {
         },
         "ca.org1.example.com",
       );
-      t.equal(secret, "pw");
+      expect(secret).toBe("pw");
     }
     {
       const { sessionId, url } = JSON.parse(
@@ -228,12 +237,13 @@ test("run-transaction-with-ws-ids", async (t: Test) => {
         },
       );
       const rawCert = await keychainPlugin.get(client2Key);
-      t.ok(rawCert, "rawCert truthy OK");
+      expect(rawCert).toBeTruthy();
       const { type, credentials } = JSON.parse(rawCert) as IIdentityData;
       const { privateKey } = credentials;
-      t.equal(type, FabricSigningCredentialType.WsX509, "Cert is X509 OK");
-      t.notok(privateKey, "certData.credentials.privateKey falsy OK");
+      expect(type).toBe(FabricSigningCredentialType.WsX509);
+      expect(privateKey).toBeFalsy();
     }
+
     // Temporary workaround here: Deploy a second contract because the default
     // one is being hammered with "InitLedger" transactions by the container's
     // own healthcheck (see healthcheck.sh in the fabric-all-in-one folder).
@@ -259,13 +269,11 @@ test("run-transaction-with-ws-ids", async (t: Test) => {
     const timeout = 180000; // 3 minutes
     const cwd = "/fabric-samples/test-network/";
     const out = await Containers.exec(container, cmd, timeout, logLevel, cwd);
-    t.ok(out, "deploy Basic2 command output truthy OK");
-    t.comment("Output of Basic2 contract deployment below:");
-    t.comment(out);
+    expect(out).toBeTruthy();
 
     {
       // make invoke InitLedger using a client1 client
-      const resp = await plugin.transact({
+      await plugin.transact({
         signingCredential: {
           keychainId: keychainId,
           keychainRef: client2Key,
@@ -278,11 +286,10 @@ test("run-transaction-with-ws-ids", async (t: Test) => {
         methodName: "InitLedger",
         params: [],
       });
-      t.true(resp.success, "InitLedger tx for Basic2 success===true OK");
     }
     {
       // make invoke TransferAsset using a client2 client
-      const resp = await plugin.transact({
+      await plugin.transact({
         signingCredential: {
           keychainId: keychainId,
           keychainRef: client2Key,
@@ -295,7 +302,6 @@ test("run-transaction-with-ws-ids", async (t: Test) => {
         methodName: "TransferAsset",
         params: ["asset1", "client2"],
       });
-      t.true(resp.success, "TransferAsset asset1 client2 success true OK");
     }
     {
       const resp = await plugin.transact({
@@ -311,11 +317,8 @@ test("run-transaction-with-ws-ids", async (t: Test) => {
         methodName: "ReadAsset",
         params: ["asset1"],
       });
-      t.true(resp.success);
       const asset = JSON.parse(resp.functionOutput);
-      t.equal(asset.owner, "client2");
+      expect(asset.Owner).toBe("client2");
     }
-    t.end();
   });
-  t.end();
 });

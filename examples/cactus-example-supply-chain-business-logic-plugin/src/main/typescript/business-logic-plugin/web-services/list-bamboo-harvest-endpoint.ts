@@ -6,6 +6,7 @@ import {
   LogLevelDesc,
   LoggerProvider,
   IAsyncProvider,
+  safeStringifyException,
 } from "@hyperledger/cactus-common";
 import {
   IEndpointAuthzOptions,
@@ -14,10 +15,10 @@ import {
 } from "@hyperledger/cactus-core-api";
 import { registerWebServiceEndpoint } from "@hyperledger/cactus-core";
 import {
-  DefaultApi as QuorumApi,
+  DefaultApi as XdaiApi,
   EthContractInvocationType,
   Web3SigningCredentialType,
-} from "@hyperledger/cactus-plugin-ledger-connector-quorum";
+} from "@hyperledger/cactus-plugin-ledger-connector-xdai";
 
 import OAS from "../../../json/openapi.json";
 import { BambooHarvestConverter } from "../../model/converter/bamboo-harvest-converter";
@@ -26,7 +27,7 @@ export interface IListBambooHarvestEndpointOptions {
   logLevel?: LogLevelDesc;
   contractName: string;
   //  contractAbi: any;
-  apiClient: QuorumApi;
+  apiClient: XdaiApi;
   keychainId: string;
 }
 
@@ -35,7 +36,7 @@ export class ListBambooHarvestEndpoint implements IWebServiceEndpoint {
 
   private readonly log: Logger;
 
-  public get className() {
+  public get className(): string {
     return ListBambooHarvestEndpoint.CLASS_NAME;
   }
 
@@ -55,7 +56,7 @@ export class ListBambooHarvestEndpoint implements IWebServiceEndpoint {
     this.log = LoggerProvider.getOrCreate({ level, label });
   }
 
-  public getOasPath() {
+  public getOasPath(): (typeof OAS.paths)["/api/v1/plugins/@hyperledger/cactus-example-supply-chain-backend/list-bamboo-harvest"] {
     return OAS.paths[
       "/api/v1/plugins/@hyperledger/cactus-example-supply-chain-backend/list-bamboo-harvest"
     ];
@@ -80,12 +81,12 @@ export class ListBambooHarvestEndpoint implements IWebServiceEndpoint {
 
   public getVerbLowerCase(): string {
     const apiPath = this.getOasPath();
-    return apiPath.get["x-hyperledger-cactus"].http.verbLowerCase;
+    return apiPath.get["x-hyperledger-cacti"].http.verbLowerCase;
   }
 
   public getPath(): string {
     const apiPath = this.getOasPath();
-    return apiPath.get["x-hyperledger-cactus"].http.path;
+    return apiPath.get["x-hyperledger-cacti"].http.path;
   }
 
   public getExpressRequestHandler(): IExpressRequestHandler {
@@ -111,15 +112,16 @@ export class ListBambooHarvestEndpoint implements IWebServiceEndpoint {
       const { callOutput } = data;
 
       const rows = BambooHarvestConverter.ofSolidityStructList(callOutput);
-      this.log.debug(`apiV1QuorumInvokeContract() => %o`, data);
+      this.log.debug(`apiClient.invokeContractV1() => %o`, data);
 
       const body = { data: rows };
       res.status(200);
       res.json(body);
-    } catch (ex) {
+    } catch (ex: unknown) {
+      const exStr = safeStringifyException(ex);
       this.log.debug(`${tag} Failed to serve request:`, ex);
       res.status(500);
-      res.json({ error: ex.stack });
+      res.json({ error: exStr });
     }
   }
 }

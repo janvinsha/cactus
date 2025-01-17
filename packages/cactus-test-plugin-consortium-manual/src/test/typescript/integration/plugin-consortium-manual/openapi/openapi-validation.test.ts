@@ -160,11 +160,12 @@ test(testCase, async (t: Test) => {
       apiServerOptions.apiCorsDomainCsv = "*";
       apiServerOptions.apiPort = addressInfo1.port;
       apiServerOptions.grpcPort = 0;
+      apiServerOptions.crpcPort = 0;
       apiServerOptions.cockpitPort = 0;
       apiServerOptions.apiTlsEnabled = false;
-      const config = await configService.newExampleConfigConvict(
-        apiServerOptions,
-      );
+      apiServerOptions.crpcPort = 0;
+      const config =
+        await configService.newExampleConfigConvict(apiServerOptions);
 
       pluginRegistry.add(pluginConsortiumManual);
 
@@ -199,10 +200,11 @@ test(testCase, async (t: Test) => {
       apiServerOptions.apiPort = addressInfo2.port;
       apiServerOptions.cockpitPort = 0;
       apiServerOptions.grpcPort = 0;
+      apiServerOptions.crpcPort = 0;
       apiServerOptions.apiTlsEnabled = false;
-      const config = await configService.newExampleConfigConvict(
-        apiServerOptions,
-      );
+      apiServerOptions.crpcPort = 0;
+      const config =
+        await configService.newExampleConfigConvict(apiServerOptions);
 
       pluginRegistry.add(pluginConsortiumManual);
 
@@ -237,10 +239,11 @@ test(testCase, async (t: Test) => {
       apiServerOptions.apiPort = addressInfo3.port;
       apiServerOptions.cockpitPort = 0;
       apiServerOptions.grpcPort = 0;
+      apiServerOptions.crpcPort = 0;
       apiServerOptions.apiTlsEnabled = false;
-      const config = await configService.newExampleConfigConvict(
-        apiServerOptions,
-      );
+      apiServerOptions.crpcPort = 0;
+      const config =
+        await configService.newExampleConfigConvict(apiServerOptions);
 
       pluginRegistry.add(pluginConsortiumManual);
 
@@ -297,7 +300,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fGetNodeJwt} with fake=4: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: { path: string }) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("fake"),
@@ -320,7 +323,7 @@ test(testCase, async (t: Test) => {
         `Endpoint ${fGetConsortiumJws} with fake=4: response.status === 400 OK`,
       );
       const fields = e.response.data.map((param: { path: string }) =>
-        param.path.replace(".body.", ""),
+        param.path.replace("/body/", ""),
       );
       t2.ok(
         fields.includes("fake"),

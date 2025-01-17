@@ -6,6 +6,8 @@ import {
   LogLevelDesc,
   LoggerProvider,
   IAsyncProvider,
+  safeStringifyException,
+  Strings,
 } from "@hyperledger/cactus-common";
 import {
   IEndpointAuthzOptions,
@@ -37,7 +39,7 @@ export class ListShipmentEndpoint implements IWebServiceEndpoint {
     return ListShipmentEndpoint.CLASS_NAME;
   }
 
-  public getOasPath() {
+  public getOasPath(): (typeof OAS.paths)["/api/v1/plugins/@hyperledger/cactus-example-supply-chain-backend/list-shipment"] {
     return OAS.paths[
       "/api/v1/plugins/@hyperledger/cactus-example-supply-chain-backend/list-shipment"
     ];
@@ -45,12 +47,12 @@ export class ListShipmentEndpoint implements IWebServiceEndpoint {
 
   getPath(): string {
     const apiPath = this.getOasPath();
-    return apiPath.get["x-hyperledger-cactus"].http.path;
+    return apiPath.get["x-hyperledger-cacti"].http.path;
   }
 
   getVerbLowerCase(): string {
     const apiPath = this.getOasPath();
-    return apiPath.get["x-hyperledger-cactus"].http.verbLowerCase;
+    return apiPath.get["x-hyperledger-cacti"].http.verbLowerCase;
   }
 
   public getOperationId(): string {
@@ -102,20 +104,24 @@ export class ListShipmentEndpoint implements IWebServiceEndpoint {
         channelName: "mychannel",
         contractName: "shipment",
         invocationType: FabricContractInvocationType.Call,
-        methodName: "getListShipment",
+        methodName: "GetListShipment",
         params: [],
       };
       const {
-        data: { functionOutput },
+        data: { functionOutput: fnOutJsonRaw },
       } = await this.opts.fabricApi.runTransactionV1(request);
-      const output = JSON.parse(functionOutput);
+      // The functionOutput might come back as an empty string which fails to
+      // JSON parse and if that happens we just massage it into an empty array.
+      const fnOutJson = Strings.isNonBlank(fnOutJsonRaw) ? fnOutJsonRaw : "[]";
+      const output = JSON.parse(fnOutJson);
       const body = { data: output };
       res.status(200);
       res.json(body);
-    } catch (ex) {
+    } catch (ex: unknown) {
+      const exStr = safeStringifyException(ex);
       this.log.debug(`${tag} Failed to serve request:`, ex);
       res.status(500);
-      res.json({ error: ex.stack });
+      res.json({ error: exStr });
     }
   }
 }

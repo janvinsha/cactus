@@ -66,12 +66,14 @@ export function getPackageInfoList(ignorePatterns = []) {
 
   /** @type {PackageInfo[]} */
   const pkgInfoList = JSON.parse(processOutput).filter(
-    (pkgInfo) => !ignorePatterns.some((ip) => ip.test(pkgInfo.name))
+    (pkgInfo) => !ignorePatterns.some((ip) => ip.test(pkgInfo.name)),
   );
 
   pkgInfoList.forEach((pkgInfo) => {
     pkgInfo.packageObject = fs.readJsonSync(`${pkgInfo.location}/package.json`);
   });
+
+  const localPkgNames = pkgInfoList.map((x) => x.name);
 
   /** @type {PackageDependencyGraph} */
   const dependencyGraph = getDependencyGraph();
@@ -79,7 +81,7 @@ export function getPackageInfoList(ignorePatterns = []) {
   pkgInfoList.forEach((pkgInfo) => {
     pkgInfo.localDependencies = dependencyGraph[pkgInfo.name]
       .filter((pkgName) => !ignorePatterns.some((ip) => ip.test(pkgName)))
-      .filter((pkgName) => pkgName.startsWith("@hyperledger/cactus"));
+      .filter((pkgName) => localPkgNames.includes(pkgName));
   });
 
   return pkgInfoList;

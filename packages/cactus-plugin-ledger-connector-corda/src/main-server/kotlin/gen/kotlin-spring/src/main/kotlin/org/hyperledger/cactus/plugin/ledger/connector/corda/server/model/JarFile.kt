@@ -2,14 +2,15 @@ package org.hyperledger.cactus.plugin.ledger.connector.corda.server.model
 
 import java.util.Objects
 import com.fasterxml.jackson.annotation.JsonProperty
-import javax.validation.constraints.DecimalMax
-import javax.validation.constraints.DecimalMin
-import javax.validation.constraints.Max
-import javax.validation.constraints.Min
-import javax.validation.constraints.NotNull
-import javax.validation.constraints.Pattern
-import javax.validation.constraints.Size
-import javax.validation.Valid
+import jakarta.validation.constraints.DecimalMax
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
+import jakarta.validation.Valid
 
 /**
  * 
@@ -20,13 +21,12 @@ import javax.validation.Valid
 data class JarFile(
 
     @get:Size(min=1,max=255)
-    @field:JsonProperty("filename", required = true) val filename: kotlin.String,
+    @get:JsonProperty("filename", required = true) val filename: kotlin.String,
 
-    @field:JsonProperty("hasDbMigrations", required = true) val hasDbMigrations: kotlin.Boolean,
+    @get:JsonProperty("hasDbMigrations", required = true) val hasDbMigrations: kotlin.Boolean,
 
     @get:Size(min=1,max=1073741824)
-    @field:JsonProperty("contentBase64", required = true) val contentBase64: kotlin.String
-) : kotlin.collections.HashMap<String, kotlin.Any>(){
+    @get:JsonProperty("contentBase64", required = true) val contentBase64: kotlin.String
+) : kotlin.collections.HashMap<String, kotlin.Any>() {
 
 }
-

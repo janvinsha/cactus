@@ -5,7 +5,7 @@ import JSON5 from "json5";
 import fs from "fs-extra";
 import { globby, Options as GlobbyOptions } from "globby";
 import { RuntimeError } from "run-time-error";
-import lernaJson from "../lerna.json";
+import { readFile } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,17 +18,21 @@ const main = async (argv: string[], env: NodeJS.ProcessEnv) => {
     throw new RuntimeError(`Process env cannot be falsy.`);
   }
   const TS_CONFIG = "tsconfig.json";
+  const LERNA_JSON = "lerna.json";
   const PACKAGE_JSON = "package.json";
   const SCRIPT_DIR = __dirname;
   const PROJECT_DIR = path.join(SCRIPT_DIR, "../");
   console.log(`SCRIPT_DIR=${SCRIPT_DIR}`);
   console.log(`PROJECT_DIR=${PROJECT_DIR}`);
 
-  const pkgJsonGlobPatterns = lernaJson.packages.map((it) =>
+  const lernaJsonStr = await readFile(PROJECT_DIR + LERNA_JSON, "utf-8");
+  const lernaJson = JSON.parse(lernaJsonStr);
+
+  const pkgJsonGlobPatterns = lernaJson.packages.map((it: string) =>
     "./".concat(it).concat(`/${PACKAGE_JSON}`),
   );
 
-  const tsConfigJsonGlobPatterns = lernaJson.packages.map((it) =>
+  const tsConfigJsonGlobPatterns = lernaJson.packages.map((it: string) =>
     "./".concat(it).concat(`/${TS_CONFIG}`),
   );
   console.log("Globbing lerna package patterns: ", pkgJsonGlobPatterns);
@@ -36,6 +40,12 @@ const main = async (argv: string[], env: NodeJS.ProcessEnv) => {
   const globbyOptions: GlobbyOptions = {
     cwd: PROJECT_DIR,
     absolute: true,
+    ignore: [
+      "**/packages/cacti-plugin-weaver-driver-fabric/**",
+      "**/weaver/common/protos-js/**",
+      "**/weaver/samples/besu/simpleasset/**",
+      "**/weaver/samples/besu/simplestate/**",
+    ], // Follow-up issue regarding these hardcoded paths (https://github.com/hyperledger-cacti/cacti/issues/3366)
   };
   const pkgJsonPaths = await globby(pkgJsonGlobPatterns, globbyOptions);
   console.log(`Package paths (${pkgJsonPaths.length}): `, pkgJsonPaths);
@@ -66,7 +76,7 @@ const main = async (argv: string[], env: NodeJS.ProcessEnv) => {
 
     const pkg = await fs.readJson(pkgJsonPath);
 
-    const deps = Object.keys(pkg.dependencies).filter((it) =>
+    const deps = Object.keys(pkg.dependencies || {}).filter((it) =>
       it.startsWith("@hyperledger/cactus-"),
     );
 

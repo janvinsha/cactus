@@ -9,13 +9,13 @@ import {
 import { ISocketApiClient } from "@hyperledger/cactus-core-api";
 import {
   DefaultApi,
-  GetMonitorTransactionsV1ResponseTx,
+  GetMonitorTransactionsV1ResponseTxInner,
 } from "../generated/openapi/typescript-axios";
 import { Configuration } from "../generated/openapi/typescript-axios/configuration";
 
 const DEFAULT_POLL_RATE_MS = 5000;
 
-type CordaBlock = GetMonitorTransactionsV1ResponseTx;
+type CordaBlock = GetMonitorTransactionsV1ResponseTxInner;
 
 /**
  * Options for CordaApiClient.watchBlocksV1  method.
@@ -35,7 +35,8 @@ export class CordaApiClientOptions extends Configuration {
  */
 export class CordaApiClient
   extends DefaultApi
-  implements ISocketApiClient<CordaBlock> {
+  implements ISocketApiClient<CordaBlock>
+{
   public static readonly CLASS_NAME = "CordaApiClient";
 
   private readonly log: Logger;
@@ -66,7 +67,7 @@ export class CordaApiClient
    * @param stateName Corda state to monitor.
    */
   private async sendStartMonitorRequest(
-    subject: ReplaySubject<GetMonitorTransactionsV1ResponseTx>,
+    subject: ReplaySubject<GetMonitorTransactionsV1ResponseTxInner>,
     clientAppId: string,
     stateName: string,
   ) {
@@ -103,7 +104,7 @@ export class CordaApiClient
    * @param stateName Corda state to monitor.
    */
   private async pollTransactionsLogin(
-    subject: ReplaySubject<GetMonitorTransactionsV1ResponseTx>,
+    subject: ReplaySubject<GetMonitorTransactionsV1ResponseTxInner>,
     clientAppId: string,
     stateName: string,
   ) {
